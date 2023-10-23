@@ -64,8 +64,7 @@ class Tagger:
         """Returns the information needed pickle an instance of this class. By default, pickling removes
         attributes with names starting with underscores.
         """
-        attributes = self.__dict__.copy()
-        return attributes
+        return self.__dict__.copy()
 
     def fit(self, X, y):
         """Trains the model. X and y are the format of what is returned by extract_features. There is no
@@ -157,8 +156,7 @@ class Tagger:
             (list of classification labels): A list of predicted labels (in encoded format)
         """
         X, _, _ = self.extract_features(examples, config, resources)
-        y = self.predict(X)
-        return y
+        return self.predict(X)
 
     def predict_proba(self, examples, config, resources):
         """
@@ -178,7 +176,6 @@ class Tagger:
     @staticmethod
     def _predict_proba(X):
         del X
-        pass
 
     @property
     def is_serializable(self):
@@ -212,7 +209,6 @@ class Tagger:
             model_path (str): The path to dump the model to
         """
         del model_path
-        pass
 
 
 def get_tags_from_entities(query, entities, scheme="IOB"):
@@ -232,9 +228,8 @@ def get_tags_from_entities(query, entities, scheme="IOB"):
     try:
         iobs, types = _get_tags_from_entities(query, entities, scheme)
     except IndexError as e:
-        raise MarkupError("Invalid entities {} in '{}'".format(entities, query)) from e
-    tags = ["|".join(args) for args in zip(iobs, types)]
-    return tags
+        raise MarkupError(f"Invalid entities {entities} in '{query}'") from e
+    return ["|".join(args) for args in zip(iobs, types)]
 
 
 def _get_tags_from_entities(query, entities, scheme="IOB"):
@@ -282,9 +277,7 @@ def get_entities_from_tags(query, tags, system_entity_recognizer):
     entities = []
 
     def _is_system_entity(entity_type):
-        if entity_type.split("_")[0] == "sys":
-            return True
-        return False
+        return entity_type.split("_")[0] == "sys"
 
     def _append_entity(token_start, entity_type, tokens):
         prefix = " ".join(normalized_tokens[:token_start])
@@ -461,18 +454,12 @@ def _get_tag_label(token):
 def _contains_O(entity):
     """Returns true if there is an O tag in the list of tokens we are considering
     as an entity"""
-    for token in entity:
-        if token[0] == O_TAG:
-            return True
-    return False
+    return any(token[0] == O_TAG for token in entity)
 
 
 def _all_O(entity):
     """Returns true if all of the tokens we are considering as an entity contain O tags"""
-    for token in entity:
-        if token[0] != O_TAG:
-            return False
-    return True
+    return all(token[0] == O_TAG for token in entity)
 
 
 def _is_boundary_error(pred_entity, exp_entity):
@@ -486,9 +473,7 @@ def _new_tag(last_entity, curr_tag):
     """Returns true if the current tag is different than the tag of the last entity"""
     if len(last_entity) < 1 or not curr_tag:
         return False
-    elif (
-        last_entity[-1][0] == I_TAG or last_entity[-1][0] == B_TAG
-    ) and curr_tag == B_TAG:
+    elif last_entity[-1][0] in [I_TAG, B_TAG] and curr_tag == B_TAG:
         return True
     else:
         return False
@@ -526,7 +511,7 @@ def get_boundary_counts(expected_sequence, predicted_sequence, boundary_counts):
     start = True
     last_pred_entity = []
     last_exp_entity = []
-    end_token = END_TAG + "|"
+    end_token = f"{END_TAG}|"
 
     # Iterate through the tokens in the sequence
     for predicted_token, expected_token in zip(

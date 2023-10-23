@@ -19,7 +19,7 @@ def test_domain_classifier_get_stats(home_assistant_app_path, capsys):
     eval = dc.evaluate()
     eval.print_stats()
     captured = capsys.readouterr()
-    all_elems = set([k for k in captured.out.replace("\n", "").split(" ") if k != ""])
+    all_elems = {k for k in captured.out.replace("\n", "").split(" ") if k != ""}
     assert "Overall" in all_elems
     assert "statistics:" in all_elems
     assert "accuracy" in all_elems

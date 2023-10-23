@@ -285,7 +285,7 @@ class ActiveLearningPipeline:  # pylint: disable=R0902
         Returns:
             sampling_size (int): Number of elements to sample in the next iteration.
         """
-        return self.batch_size if num_unsampled > self.batch_size else num_unsampled
+        return min(num_unsampled, self.batch_size)
 
 
 class ActiveLearningPipelineFactory:

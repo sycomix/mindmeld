@@ -16,6 +16,7 @@ Base for custom modules that are developed on top of nn layers that can do
 sequence or token classification
 """
 
+
 import json
 import logging
 import os
@@ -56,8 +57,6 @@ try:
     nn_module = _get_module_or_attr("torch.nn", "Module")
 except ImportError:
     nn_module = object
-    pass
-
 logger = logging.getLogger(__name__)
 
 
@@ -198,10 +197,7 @@ class BaseClassification(nn_module):
         optimizer, scheduler = self._create_optimizer_and_scheduler(num_training_steps)
 
         # set verbosity boolean
-        _verbose = (
-            logger.getEffectiveLevel() == logging.INFO or
-            logger.getEffectiveLevel() == logging.DEBUG
-        )
+        _verbose = logger.getEffectiveLevel() in [logging.INFO, logging.DEBUG]
         self.log_and_return_model_info(_verbose)
 
         # training w/ validation
@@ -230,13 +226,17 @@ class BaseClassification(nn_module):
                     padding_length=self.params.padding_length,
                     add_terminals=self.params.add_terminals,
                 )
-                batch_data.update({
-                    "_labels": self._prepare_labels(  # `_` 'cause this key is for intermediate use
-                        batch_labels,
-                        # pad to the max length amongst encoded examples
-                        max([len(_split_lengths) for _split_lengths in batch_data["split_lengths"]])
-                    )
-                })
+                batch_data.update(
+                    {
+                        "_labels": self._prepare_labels(
+                            batch_labels,
+                            max(
+                                len(_split_lengths)
+                                for _split_lengths in batch_data["split_lengths"]
+                            ),
+                        )
+                    }
+                )
                 batch_data = self.forward(batch_data)
                 loss = batch_data["loss"]
                 train_loss += loss.cpu().detach().numpy()
@@ -271,7 +271,7 @@ class BaseClassification(nn_module):
                 # validation
                 if len(batch_labels_predicted) != len(batch_labels_targetted):
                     msg = f"Number of predictions ({len(batch_labels_predicted)}) " \
-                          f"not equal to number of targets ({len(batch_labels_targetted)})"
+                              f"not equal to number of targets ({len(batch_labels_targetted)})"
                     logger.error(msg)
                     raise AssertionError(msg)
                 # flatten if required
@@ -289,7 +289,7 @@ class BaseClassification(nn_module):
                 predictions.extend(batch_labels_predicted)
                 targets.extend(batch_labels_targetted)
                 progress_bar_msg = f"Epoch: {epoch} | " \
-                                   f"Validation Metric: {self.params.validation_metric} "
+                                       f"Validation Metric: {self.params.validation_metric} "
                 t.set_description(progress_bar_msg, refresh=True)
             # compute score
             if ValidationMetricType(self.params.validation_metric) == ValidationMetricType.ACCURACY:
@@ -298,7 +298,7 @@ class BaseClassification(nn_module):
                 dev_score = f1_score(targets, predictions, average='weighted')
             else:
                 msg = f"Invalid 'validation_metric' ({self.params.validation_metric}) provided " \
-                      f"in params. Allowed values are only 'accuracy' and 'f1'"
+                          f"in params. Allowed values are only 'accuracy' and 'f1'"
                 raise ValueError(msg)
             # save model weights in a temp folder; later move it to folder passed through dump()
             if dev_score >= best_dev_score:
@@ -308,7 +308,7 @@ class BaseClassification(nn_module):
                     else "remained at"
                 )
                 msg = f"Model weights saved after epoch: {epoch} when dev score {phrase} " \
-                      f"'{dev_score:.4f}'\n"
+                          f"'{dev_score:.4f}'\n"
                 logger.info(msg)
                 # update patience counter
                 if dev_score == best_dev_score:
@@ -319,12 +319,12 @@ class BaseClassification(nn_module):
             else:
                 patience_counter += 1
                 msg = f"No weights saved after epoch: {epoch}. " \
-                      f"The dev score last improved after epoch: {best_dev_epoch}"
+                          f"The dev score last improved after epoch: {best_dev_epoch}"
                 logger.info(msg)
 
         # load back the best model dumped in temporary path and delete the temp folder
         msg = f"Setting the model weights to checkpoint whose dev " \
-              f"{self.params.validation_metric} score is {best_dev_score:.4f}"
+                  f"{self.params.validation_metric} score is {best_dev_score:.4f}"
         logger.info(msg)
         # because we are loading to same device, no `map_location` specified
         self.load_state_dict(torch.load(temp_weights_save_path))
@@ -349,22 +349,22 @@ class BaseClassification(nn_module):
             # padding indices in the batch predictions in the fit() method
         })
 
-        # validate tokenizer_type param
-        allowed_tokenizer_types = {
-            EmbedderType.GLOVE: [
-                TokenizerType.WHITESPACE_TOKENIZER,
-                TokenizerType.WHITESPACE_AND_CHAR_DUAL_TOKENIZER,
-            ],
-            EmbedderType.BERT: [TokenizerType.HUGGINGFACE_PRETRAINED_TOKENIZER, ]
-        }
         if params.get("embedder_type") and params.get("tokenizer_type"):
             embedder_type = EmbedderType(params.get("embedder_type"))
             tokenizer_type = TokenizerType(params.get("tokenizer_type"))
+            # validate tokenizer_type param
+            allowed_tokenizer_types = {
+                EmbedderType.GLOVE: [
+                    TokenizerType.WHITESPACE_TOKENIZER,
+                    TokenizerType.WHITESPACE_AND_CHAR_DUAL_TOKENIZER,
+                ],
+                EmbedderType.BERT: [TokenizerType.HUGGINGFACE_PRETRAINED_TOKENIZER, ]
+            }
             if embedder_type in allowed_tokenizer_types:
                 if tokenizer_type not in allowed_tokenizer_types[embedder_type]:
                     msg = f"For the selected choice of embedder ({embedder_type.value}), only " \
-                          f"the following tokenizer_type are allowed: " \
-                          f"{[v.value for v in allowed_tokenizer_types[embedder_type]]}."
+                              f"the following tokenizer_type are allowed: " \
+                              f"{[v.value for v in allowed_tokenizer_types[embedder_type]]}."
                     raise ValueError(msg)
 
         # validate validation metric
@@ -373,8 +373,8 @@ class BaseClassification(nn_module):
             validation_metric = ValidationMetricType(validation_metric)
         except ValueError as e:
             msg = f"Expected validation_metric amongst " \
-                  f"{[v.value for v in ValidationMetricType.__members__.values()]} " \
-                  f"but found '{validation_metric}'."
+                      f"{[v.value for v in ValidationMetricType.__members__.values()]} " \
+                      f"but found '{validation_metric}'."
             raise ValueError(msg) from e
 
         return params
@@ -414,8 +414,8 @@ class BaseClassification(nn_module):
             emb_dim = params.get("emb_dim", glove_emb_dim)
             if emb_dim != glove_emb_dim:
                 msg = f"Provided 'emb_dim':{emb_dim} cannot be used with the provided " \
-                      f"'embedder_type':{embedder_type}. Consider not specifying any 'emb_dim' " \
-                      f"with this embedder."
+                          f"'embedder_type':{embedder_type}. Consider not specifying any 'emb_dim' " \
+                          f"with this embedder."
                 raise ValueError(msg)
             params.update({
                 "embedder_type": embedder_type,
@@ -434,10 +434,10 @@ class BaseClassification(nn_module):
 
         if not params.get("emb_dim"):
             msg = f"Need a valid 'emb_dim' to initialize embedding layers. To specify a " \
-                  f"particular dimension, either pass-in the 'emb_dim' param or provide a  valid " \
-                  f"'embedder_type' param. Continuing with a default value:{DEFAULT_EMB_DIM}."
+                      f"particular dimension, either pass-in the 'emb_dim' param or provide a  valid " \
+                      f"'embedder_type' param. Continuing with a default value:{DEFAULT_EMB_DIM}."
             logger.error(msg)
-            params.update({"emb_dim": DEFAULT_EMB_DIM})
+            params["emb_dim"] = DEFAULT_EMB_DIM
 
         return params
 
@@ -474,7 +474,7 @@ class BaseClassification(nn_module):
                 loading to create encoder and forward graph)
         """
         # resolve path and create associated folder if required
-        path = os.path.abspath(os.path.splitext(path)[0]) + ".pytorch_model"
+        path = f"{os.path.abspath(os.path.splitext(path)[0])}.pytorch_model"
         os.makedirs(path, exist_ok=True)
 
         # save weights
@@ -501,7 +501,7 @@ class BaseClassification(nn_module):
             path (str): The path header wherein dumped files are present.
         """
         # resolve path
-        path = os.path.abspath(os.path.splitext(path)[0]) + ".pytorch_model"
+        path = f"{os.path.abspath(os.path.splitext(path)[0])}.pytorch_model"
 
         # load all params
         with open(os.path.join(path, "params.json"), "r") as fp:
@@ -512,7 +512,7 @@ class BaseClassification(nn_module):
         module = cls()
         if module.name != all_params["name"]:
             msg = f"The name of the loaded model ({all_params['name']}) from the path '{path}' " \
-                  f"is different from the name of the module instantiated ({module.name})"
+                      f"is different from the name of the module instantiated ({module.name})"
             raise AssertionError(msg)
 
         # load encoder's state
@@ -526,20 +526,19 @@ class BaseClassification(nn_module):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         if device != module.params.device:
             msg = f"Model was dumped when on the device:{module.params.device} " \
-                  f"but is not being loaded on device:{device}"
+                      f"but is not being loaded on device:{device}"
             logger.warning(msg)
             module.params.device = device
         bin_path = os.path.join(path, "model.bin")
         trained_state_dict = torch.load(bin_path, map_location=torch.device(device))
         module_state_dict = module.state_dict()
-        keys_diff = module_state_dict.keys() - trained_state_dict.keys()
-        if keys_diff:
+        if keys_diff := module_state_dict.keys() - trained_state_dict.keys():
             msg = f"While loading {module.__class__.__name__}, {len(keys_diff)} keys of the " \
-                  f"total {len(module_state_dict.keys())} of the torch module are not found in " \
-                  f"the file loaded from {bin_path} "
+                      f"total {len(module_state_dict.keys())} of the torch module are not found in " \
+                      f"the file loaded from {bin_path} "
             msg += "\n- This IS fine if loading a model for which only some parameters were " \
-                   "trained and others frozen. \n- This IS NOT fine if you expect all parameters " \
-                   "were trained."
+                       "trained and others frozen. \n- This IS NOT fine if you expect all parameters " \
+                       "were trained."
             logger.warning(msg)
         module.load_state_dict(trained_state_dict, strict=False)
         module.to(device)

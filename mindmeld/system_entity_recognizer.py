@@ -281,11 +281,10 @@ class DucklingRecognizer(SystemEntityRecognizer):
                 "POST", self.url, data=data, timeout=float(SYS_ENTITY_REQUEST_TIMEOUT)
             )
 
-            if response.status_code == requests.codes["ok"]:
-                response_json = response.json()
-                return response_json, response.status_code
-            else:
+            if response.status_code != requests.codes["ok"]:
                 raise SystemEntityError("System entity status code is not 200.")
+            response_json = response.json()
+            return response_json, response.status_code
         except requests.ConnectionError:
             sys.exit(
                 "Unable to connect to the system entity recognizer. Make sure it's "
@@ -448,7 +447,7 @@ class DucklingRecognizer(SystemEntityRecognizer):
                     if from_val and to_val:
                         candidates_with_from_and_to_vals.append(candidate)
 
-                if len(candidates_with_from_and_to_vals) > 0 and len(from_vals) == 1:
+                if candidates_with_from_and_to_vals and len(from_vals) == 1:
                     # All of the candidates have the same "from" time
                     return candidates_with_from_and_to_vals[0]
 
@@ -649,8 +648,8 @@ def duckling_item_to_entity(item):
     value = {}
     dimension = item["dim"]
 
-    # These dimensions have no 'type' key in the 'value' dict
-    if dimension in map(
+    num_type = dimension
+    if num_type in map(
         lambda x: x.value,
         [
             DucklingDimension.CREDIT_CARD_NUMBER,
@@ -659,20 +658,12 @@ def duckling_item_to_entity(item):
             DucklingDimension.URL,
         ],
     ):
-        num_type = dimension
         value["value"] = item["value"]["value"]
         if "values" in item["value"]:
             value["alternate_values"] = item["value"]["values"]
     else:
         type_ = item["value"]["type"]
-        # num_type = f'{dimension}-{type_}'  # e.g. time-interval, temperature-value, etc
-        num_type = dimension
-
-        if type_ == "value":
-            value["value"] = item["value"]["value"]
-            if "values" in item["value"]:
-                value["alternate_values"] = item["value"]["values"]
-        elif type_ == "interval":
+        if type_ == "interval":
             # Some intervals will only contain one value. The other value will be None in that case
             value["value"] = _construct_interval_helper(item["value"])
             if "values" in item["value"]:
@@ -681,16 +672,16 @@ def duckling_item_to_entity(item):
                     for interval_item in item["value"]["values"]
                 ]
 
+        elif type_ == "value":
+            value["value"] = item["value"]["value"]
+            if "values" in item["value"]:
+                value["alternate_values"] = item["value"]["values"]
         # Get the unit if it exists
         if "unit" in item["value"]:
             value["unit"] = item["value"]["unit"]
 
-        # Special handling of time dimension grain
-        if dimension == DucklingDimension.TIME.value:
-            if type_ == "value":
-                value["grain"] = item["value"].get("grain")
-            elif type_ == "interval":
-
+        if num_type == DucklingDimension.TIME.value:
+            if type_ == "interval":
                 # Want to predict time intervals as sys_interval
                 num_type = "interval"
                 if "from" in item["value"]:
@@ -698,6 +689,8 @@ def duckling_item_to_entity(item):
                 elif "to" in item["value"]:
                     value["grain"] = item["value"]["to"].get("grain")
 
+            elif type_ == "value":
+                value["grain"] = item["value"].get("grain")
     entity_type = f"{SYSTEM_ENTITY_PREFIX}{num_type}"
     return Entity(item["body"], entity_type, value=value)
 
@@ -739,6 +732,4 @@ def dimensions_from_entity_types(entity_types):
             dims.add("time")
         if entity_type.startswith(SYSTEM_ENTITY_PREFIX):
             dims.add(entity_type.split("_")[1])
-    if not dims:
-        return None
-    return list(dims)
+    return None if not dims else list(dims)

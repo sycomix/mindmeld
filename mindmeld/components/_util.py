@@ -31,7 +31,7 @@ def _is_module_available(module_name: str):
     Returns:
         bool, if or not the given module exists
     """
-    return bool(importlib.util.find_spec(module_name) is not None)
+    return importlib.util.find_spec(module_name) is not None
 
 
 def _get_module_or_attr(module_name: str, func_name: str = None):
@@ -124,28 +124,40 @@ class TreeNlp:
 
     def get_intent_nodes(self, domain: Union[str, TreeNode]):
         domain, _, _, _ = self._convert_tree_node_to_values(domain)
-        for domain_node in self.root.children:
-            if domain_node.nlp_name == domain:
-                return domain_node.children
-        return []
+        return next(
+            (
+                domain_node.children
+                for domain_node in self.root.children
+                if domain_node.nlp_name == domain
+            ),
+            [],
+        )
 
     def get_entity_nodes(self, domain: Union[str, TreeNode],
                          intent: Union[str, TreeNode]):
         domain, intent, _, _ = self._convert_tree_node_to_values(domain, intent)
-        for intent_node in self.get_intent_nodes(domain):
-            if intent_node.nlp_name == intent:
-                return intent_node.children
-        return []
+        return next(
+            (
+                intent_node.children
+                for intent_node in self.get_intent_nodes(domain)
+                if intent_node.nlp_name == intent
+            ),
+            [],
+        )
 
     def get_role_nodes(self, domain: Union[str, TreeNode],
                        intent: Union[str, TreeNode],
                        entity: Union[str, TreeNode]):
         domain, intent, entity, _ = self._convert_tree_node_to_values(
             domain, intent, entity)
-        for entity_node in self.get_entity_nodes(domain, intent):
-            if entity_node.nlp_name == entity:
-                return entity_node.children
-        return []
+        return next(
+            (
+                entity_node.children
+                for entity_node in self.get_entity_nodes(domain, intent)
+                if entity_node.nlp_name == entity
+            ),
+            [],
+        )
 
     def update(self, mask_state: bool,
                domain: Union[str, TreeNode],
@@ -167,7 +179,7 @@ class TreeNlp:
         # validation check
         nlp_components = [domain_name, intent_name, entity_name, role_name]
         for i in range(1, len(nlp_components)):
-            if any(not component for component in nlp_components[:i]) and nlp_components[i]:
+            if not all(nlp_components[:i]) and nlp_components[i]:
                 raise InvalidMaskError(
                     f"Unable to resolve NLP hierarchy since "
                     f"{str(nlp_components[i])} does not have an valid ancestor")
@@ -309,5 +321,4 @@ class TreeNlp:
                             result[domain.nlp_name][intent.nlp_name][
                                 entity.nlp_name][role.nlp_name] = {}
 
-        serialize_results = self._default_to_regular(result)
-        return serialize_results
+        return self._default_to_regular(result)

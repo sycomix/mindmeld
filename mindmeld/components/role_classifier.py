@@ -322,7 +322,7 @@ class RoleClassifier(Classifier):
                     labels.append(entity.entity.role)
 
         unique_labels = set(labels)
-        if len(unique_labels) == 0:
+        if not unique_labels:
             # No roles
             return (), ()
         if None in unique_labels:
@@ -337,10 +337,9 @@ class RoleClassifier(Classifier):
                 ProcessedQueryList.ListIterator(labels))
 
     def _get_examples_and_labels_hash(self, queries):
-        hashable_queries = (
-            [self.domain + "###" + self.intent + "###" + self.entity_type + "###"]
-            + sorted(list(queries.raw_queries()))
-        )
+        hashable_queries = [
+            f"{self.domain}###{self.intent}###{self.entity_type}###"
+        ] + sorted(list(queries.raw_queries()))
         return self._resource_loader.hash_list(hashable_queries)
 
     def inspect(self, query, gold_label=None, dynamic_resource=None):

@@ -344,8 +344,7 @@ class EnglishParaphraser(Augmentor):
             processed_query_text = processed_query.query.text.strip()
             if self.retain_entities:
                 text = [processed_query_text.lower(), EOS_TOKEN]
-                for entity in processed_query.entities:
-                    text.append(entity.text.lower())
+                text.extend(entity.text.lower() for entity in processed_query.entities)
                 model_inputs.append(' '.join(text))
             else:
                 model_inputs.append(processed_query_text)
@@ -487,14 +486,13 @@ class EnglishParaphraser(Augmentor):
         return all_generated_queries
 
     def augment_queries(self, queries, **kwargs):
-        augmented_queries = list(
-            set(
+        return list(
+            {
                 p.lower()
                 for p in self._generate_paraphrases(queries, **kwargs)
                 if self._validate_generated_query(p)
-            )
+            }
         )
-        return augmented_queries
 
 
 class MultiLingualParaphraser(Augmentor):
@@ -598,9 +596,10 @@ class MultiLingualParaphraser(Augmentor):
                 unannotated queries (list(str))
 
         """
-        unannotated_queries = [processed_query.query.text.strip()
-                               for processed_query in processed_queries]
-        return unannotated_queries
+        return [
+            processed_query.query.text.strip()
+            for processed_query in processed_queries
+        ]
 
     def augment_queries(self, processed_queries):
         translated_queries = self._translate(
@@ -622,11 +621,11 @@ class MultiLingualParaphraser(Augmentor):
             **self.default_reverse_params,
         )
         augmented_queries = list(
-            set(
+            {
                 p.lower()
                 for p in reverse_translated_queries
                 if self._validate_generated_query(p)
-            )
+            }
         )
 
         return augmented_queries

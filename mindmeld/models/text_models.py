@@ -370,11 +370,10 @@ class TextModel(Model):
             selector_type = None
         else:
             selector_type = self.config.model_settings.get("feature_selector")
-        selector = {
+        return {
             "l1": SelectFromModel(LogisticRegression(penalty="l1", C=1)),
             "f": SelectPercentile(),
         }.get(selector_type)
-        return selector
 
     def _get_feature_scaler(self):
         """Get a feature value scaler based on the model settings"""
@@ -382,11 +381,10 @@ class TextModel(Model):
             scale_type = None
         else:
             scale_type = self.config.model_settings.get("feature_scaler")
-        scaler = {
+        return {
             "std-dev": StandardScaler(with_mean=False),
             "max-abs": MaxAbsScaler(),
         }.get(scale_type)
-        return scaler
 
     def evaluate(self, examples, labels):
         """Evaluates a model against the given examples and labels
@@ -412,8 +410,7 @@ class TextModel(Model):
             for i, e in enumerate(examples)
         ]
 
-        model_eval = StandardModelEvaluation(config, evaluations)
-        return model_eval
+        return StandardModelEvaluation(config, evaluations)
 
     def fit(self, examples, labels, params=None):
         """Trains this model.
@@ -481,11 +478,7 @@ class TextModel(Model):
         metadata = joblib.load(path)
 
         # backwards compatability check for RoleClassifiers
-        if isinstance(metadata, dict):
-            return metadata["model"]
-
-        # in this case, metadata = model which was serialized and dumped
-        return metadata
+        return metadata["model"] if isinstance(metadata, dict) else metadata
 
     def _dump(self, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -526,8 +519,7 @@ class PytorchTextModel(PytorchModel):
             for i, e in enumerate(examples)
         ]
 
-        model_eval = StandardModelEvaluation(self.config, evaluations)
-        return model_eval
+        return StandardModelEvaluation(self.config, evaluations)
 
     def fit(self, examples, labels, params=None):
 

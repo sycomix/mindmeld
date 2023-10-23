@@ -25,7 +25,7 @@ intent_test_data = [
 
 @pytest.mark.parametrize("query1,expected_intent", intent_test_data)
 def test_nlp_correct_intent(rasa_nlp, query1, expected_intent):
-    assert rasa_nlp.process(query1)["intent"] == "{}".format(expected_intent)
+    assert rasa_nlp.process(query1)["intent"] == f"{expected_intent}"
 
 
 def test_nlp_name(rasa_nlp):

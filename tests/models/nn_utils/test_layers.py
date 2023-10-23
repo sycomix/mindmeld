@@ -110,9 +110,7 @@ def test_lstm_layer():
             assert all(outputs[batch_dim_pointer1][-1] == torch.zeros((2 * kwargs["hidden_dim"],)))
             assert any(outputs[batch_dim_pointer2][-1] != torch.zeros((2 * kwargs["hidden_dim"],)))
 
-    kwargs.update({
-        "bidirectional": False,
-    })
+    kwargs["bidirectional"] = False
 
     lstm_layer = LstmLayer(**kwargs)
     lstm_layer.eval()
@@ -227,8 +225,8 @@ def test_splitting_and_pooling_layer():
             torch.randint(1, 4, (n_sub_groups,))
             for n_sub_groups in torch.randint(1, 4, (batch_size,))
         ]
-        max_sum_lengths = max([sum(_x) for _x in span_lengths])
-        max_n_lengths = max([len(_x) for _x in span_lengths])
+        max_sum_lengths = max(sum(_x) for _x in span_lengths)
+        max_n_lengths = max(len(_x) for _x in span_lengths)
 
         # inputs w/ terminal token embeddings
         inputs = torch.randn((batch_size, max_sum_lengths + 2, emb_dim))
@@ -267,8 +265,8 @@ def test_splitting_and_pooling_layer():
             torch.randint(1, 4, (n_sub_groups,))
             for n_sub_groups in torch.randint(1, 4, (batch_size,))
         ]
-        max_sum_lengths = max([sum(_x) for _x in span_lengths])
-        max_n_lengths = max([len(_x) for _x in span_lengths])
+        max_sum_lengths = max(sum(_x) for _x in span_lengths)
+        max_n_lengths = max(len(_x) for _x in span_lengths)
 
         # inputs w/ terminal token embeddings
         inputs = torch.randn((batch_size, max_sum_lengths + 2, emb_dim))

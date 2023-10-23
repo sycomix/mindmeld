@@ -243,13 +243,12 @@ class ModelEvaluation(namedtuple("ModelEvaluation", ["config", "results"])):
             y_true=y_true, y_pred=y_pred, labels=labels
         )
 
-        stats = {
+        return {
             "precision": precision,
             "recall": recall,
             "f_beta": f_beta,
             "support": support,
         }
-        return stats
 
     @staticmethod
     def _get_overall_stats(y_true, y_pred, labels):
@@ -271,13 +270,12 @@ class ModelEvaluation(namedtuple("ModelEvaluation", ["config", "results"])):
         )
         accuracy = accuracy_score(y_true=y_true, y_pred=y_pred)
 
-        stats_overall = {
+        return {
             "f1_weighted": f1_weighted,
             "f1_macro": f1_macro,
             "f1_micro": f1_micro,
             "accuracy": accuracy,
         }
-        return stats_overall
 
     @staticmethod
     def _get_confusion_matrix_and_counts(y_true, y_pred):
@@ -357,9 +355,7 @@ class ModelEvaluation(namedtuple("ModelEvaluation", ["config", "results"])):
         print(title + ": \n")
         print(title_format.format("class", *table_titles))
         for label_index, label in enumerate(text_labels):
-            row = []
-            for stat in table_titles:
-                row.append(stats[stat][label_index])
+            row = [stats[stat][label_index] for stat in table_titles]
             print(stat_row_format.format(self._truncate_label(label, 18), *row))
         print("\n\n")
 
@@ -414,15 +410,13 @@ class ModelEvaluation(namedtuple("ModelEvaluation", ["config", "results"])):
         ]
         print(title + ": \n")
         print(title_format.format(*table_titles))
-        row = []
-        for stat in table_titles:
-            row.append(stats_overall[stat])
+        row = [stats_overall[stat] for stat in table_titles]
         print(stat_row_format.format(*row))
         print("\n\n")
 
     @staticmethod
     def _truncate_label(label, max_len):
-        return (label[:max_len] + "..") if len(label) > max_len else label
+        return f"{label[:max_len]}.." if len(label) > max_len else label
 
 
 class StandardModelEvaluation(ModelEvaluation):
@@ -446,12 +440,9 @@ class StandardModelEvaluation(ModelEvaluation):
     def get_stats(self):
         """Prints model evaluation stats in a table to stdout"""
         raw_results = self.raw_results()
-        stats = self._get_common_stats(
+        return self._get_common_stats(
             raw_results.expected, raw_results.predicted, raw_results.text_labels
         )
-        # Note can add any stats specific to the standard model to any of the tables here
-
-        return stats
 
     def print_stats(self):
         """Prints model evaluation stats to stdout"""
@@ -520,9 +511,7 @@ class SequenceModelEvaluation(ModelEvaluation):
         stat_row_format = "{:>18.3f}" * (len(sequence_stats))
         print("Sequence-level statistics: \n")
         print(title_format.format(*table_titles))
-        row = []
-        for stat in table_titles:
-            row.append(sequence_stats[stat])
+        row = [sequence_stats[stat] for stat in table_titles]
         print(stat_row_format.format(*row))
         print("\n\n")
 
@@ -588,9 +577,7 @@ class EntityModelEvaluation(SequenceModelEvaluation):
         stat_row_format = "{:>12}" * (len(boundary_counts))
         print("Segment-level statistics: \n")
         print(title_format.format(*table_titles))
-        row = []
-        for stat in table_titles:
-            row.append(boundary_counts[stat])
+        row = [boundary_counts[stat] for stat in table_titles]
         print(stat_row_format.format(*row))
         print("\n\n")
 

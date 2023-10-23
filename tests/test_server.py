@@ -13,8 +13,7 @@ def app_manager(kwik_e_mart_app_path, kwik_e_mart_nlp):
 
 @pytest.fixture
 def client(app_manager):
-    server = MindMeldServer(app_manager)._server.test_client()
-    yield server
+    yield MindMeldServer(app_manager)._server.test_client()
 
 
 def test_parse_endpoint(client):

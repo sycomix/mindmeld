@@ -178,7 +178,9 @@ class TextPreparationPipeline:
         return (
             self.preprocessors is not None
             and len(self.preprocessors) >= 1
-            and not any([isinstance(elem, NoOpPreprocessor) for elem in self.preprocessors])
+            and not any(
+                isinstance(elem, NoOpPreprocessor) for elem in self.preprocessors
+            )
         )
 
     def normalize(self, text, keep_special_chars=None):
@@ -197,8 +199,7 @@ class TextPreparationPipeline:
                 "You can specify 'keep_special_chars' in the TEXT_PREPARATION_CONFIG."
             )
         normalized_tokens = self.tokenize_and_normalize(text)
-        normalized_text = " ".join([t["entity"] for t in normalized_tokens])
-        return normalized_text
+        return " ".join([t["entity"] for t in normalized_tokens])
 
     def _normalize_text(self, text):
         """Normalize an individual token by processing text with all normalizers.
@@ -253,20 +254,18 @@ class TextPreparationPipeline:
             if not raw_token["text"]:
                 continue
             normalized_text = self._normalize_text(raw_token["text"])
-            # We tokenize the post-norm text and split the entity if possible
-            # Ex: normalize("o'clock") -> "o clock" -> ["o", "clock"]
-            normalized_texts = [t["text"] for t in self.tokenize(normalized_text)]
-
-            if len(normalized_texts) > 0:
-                for token_text in normalized_texts:
-                    normalized_tokens.append(
-                        {
-                            "entity": token_text,
-                            "raw_entity": raw_token["text"],
-                            "raw_token_index": i,
-                            "raw_start": raw_token["start"],
-                        }
-                    )
+            if normalized_texts := [
+                t["text"] for t in self.tokenize(normalized_text)
+            ]:
+                normalized_tokens.extend(
+                    {
+                        "entity": token_text,
+                        "raw_entity": raw_token["text"],
+                        "raw_token_index": i,
+                        "raw_start": raw_token["start"],
+                    }
+                    for token_text in normalized_texts
+                )
         return normalized_tokens
 
     def get_normalized_tokens_as_tuples(self, text):
@@ -364,21 +363,19 @@ class TextPreparationPipeline:
             entity_text_start, entity_text_end = match.span(1)
             entity_text = match.group(1)
 
-            # Adds " {"
-            modified_text.append(text[entity_start:entity_text_start])
-
-            # Adds function(entity_text)
-            modified_text.append(function(entity_text))
-
-            # Adds "|"
-            modified_text.append(text[entity_text_end:entity_end])
-
+            modified_text.extend(
+                (
+                    text[entity_start:entity_text_start],
+                    function(entity_text),
+                    text[entity_text_end:entity_end],
+                )
+            )
             # Update the previous entity ending index
             prev_entity_end = entity_end
 
         if prev_entity_end < len(text):
             # Adds the remainder of the text after the last end brace } "function(post_entity_text)"
-            modified_text.append(function(text[prev_entity_end: len(text)]))
+            modified_text.append(function(text[prev_entity_end:]))
 
         return "".join(modified_text)
 
@@ -425,16 +422,13 @@ class TextPreparationPipeline:
 
         if prev_entity_end < len(text):
             # Add tokens from the text after the last MindMeld entity
-            tokens_after_last_entity = self.tokenizer.tokenize(
-                text[prev_entity_end: len(text)]
-            )
+            tokens_after_last_entity = self.tokenizer.tokenize(text[prev_entity_end:])
             TextPreparationPipeline.offset_token_start_values(
                 tokens=tokens_after_last_entity, offset=prev_entity_end
             )
             tokens.extend(tokens_after_last_entity)
 
-        tokens = TextPreparationPipeline.filter_out_space_text_tokens(tokens)
-        return tokens
+        return TextPreparationPipeline.filter_out_space_text_tokens(tokens)
 
     @staticmethod
     def offset_token_start_values(tokens: List[Dict], offset: int):
@@ -459,7 +453,7 @@ class TextPreparationPipeline:
         for token in tokens:
             category_by_char = [unicodedata.category(x) for x in token["text"]]
             all_characters_are_space = all(
-                [c == UNICODE_SPACE_CATEGORY for c in category_by_char]
+                c == UNICODE_SPACE_CATEGORY for c in category_by_char
             )
             if not all_characters_are_space:
                 filtered_tokens.append(token)
@@ -496,17 +490,12 @@ class TextPreparationPipeline:
             mapping = {i: i for i in range(n)}
             return mapping, mapping
 
-        edit_dis = []
-        for i in range(0, n + 1):
-            edit_dis.append([0] * (m + 1))
+        edit_dis = [[0] * (m + 1) for _ in range(0, n + 1)]
         edit_dis[0] = list(range(0, m + 1))
         for i in range(0, n + 1):
             edit_dis[i][0] = i
 
-        directions = []
-        for i in range(0, n + 1):
-            directions.append([""] * (m + 1))
-
+        directions = [[""] * (m + 1) for _ in range(0, n + 1)]
         for i in range(1, n + 1):
             for j in range(1, m + 1):
                 dis = 999
@@ -741,14 +730,12 @@ class TextPreparationPipelineFactory:
         Returns:
             instantiated_components (List[Object]): A list instantiated components.
         """
-        instantiated_components = []
-        for component in components:
-            instantiated_components.append(
-                TextPreparationPipelineFactory._construct_pipeline_component(
-                    expected_component_class, component, language
-                )
+        return [
+            TextPreparationPipelineFactory._construct_pipeline_component(
+                expected_component_class, component, language
             )
-        return instantiated_components
+            for component in components
+        ]
 
     @staticmethod
     def _construct_pipeline_component(  # pylint: disable=W0640

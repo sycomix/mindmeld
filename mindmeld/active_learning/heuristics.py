@@ -43,20 +43,17 @@ def stratified_random_sample(labels: List) -> List[int]:
     np.random.seed(ACTIVE_LEARNING_RANDOM_SEED)
 
     label_to_indices = _get_labels_to_indices(labels)
-    lowest_label_freq = min([len(indices) for indices in label_to_indices.values()])
+    lowest_label_freq = min(len(indices) for indices in label_to_indices.values())
     avg_label_freq = len(labels) // len(label_to_indices)
     sample_per_label = min(lowest_label_freq, avg_label_freq)
 
     selected_indices = []
     for i in range(sample_per_label):
-        for indices in label_to_indices.values():
-            selected_indices.append(indices[i])
-
+        selected_indices.extend(indices[i] for indices in label_to_indices.values())
     remaining_indices = [i for i in range(len(labels)) if i not in selected_indices]
     np.random.shuffle(remaining_indices)
 
-    ranked_indices = selected_indices + remaining_indices
-    return ranked_indices
+    return selected_indices + remaining_indices
 
 
 def _get_labels_to_indices(labels: List) -> defaultdict:
@@ -369,10 +366,8 @@ class KLDivergenceSampling(ABC):
         q_x = np.mean(confidences_3d, axis=0)
         # Duplicate the mean distribution by number of models
         num_models, _, _ = np.array(confidences_3d).shape
-        q_x = [q_x for n in range(num_models)]
-        # X: Model, Y: Divergence Per Element
-        divergences = scipy_entropy(confidences_3d, q_x, axis=2, base=ENTROPY_LOG_BASE)
-        return divergences
+        q_x = [q_x for _ in range(num_models)]
+        return scipy_entropy(confidences_3d, q_x, axis=2, base=ENTROPY_LOG_BASE)
 
     @staticmethod
     def get_divergences_per_element_with_segments(

@@ -7,6 +7,7 @@ test_question_answerer
 
 Tests for `question_answerer` module.
 """
+
 import os
 
 # pylint: disable=locally-disabled,redefined-outer-name
@@ -15,9 +16,11 @@ from mindmeld.components._elasticsearch_helpers import create_es_client
 from mindmeld.components.question_answerer import QuestionAnswerer, NativeQuestionAnswerer
 
 ENTITY_TYPE = "store_name"
-STORE_DATA_FILE_PATH = os.path.dirname(__file__) + "/../kwik_e_mart/data/stores.json"
+STORE_DATA_FILE_PATH = (
+    f"{os.path.dirname(__file__)}/../kwik_e_mart/data/stores.json"
+)
 DISH_DATA_FILE_PATH = (
-    os.path.dirname(__file__) + "/../food_ordering/data/menu_items.json"
+    f"{os.path.dirname(__file__)}/../food_ordering/data/menu_items.json"
 )
 
 """ fixtures for elastic search based QA """
@@ -37,8 +40,7 @@ def answerer(kwik_e_mart_app_path, es_client):
         data_file=STORE_DATA_FILE_PATH,
     )
 
-    qa = QuestionAnswerer(kwik_e_mart_app_path)
-    return qa
+    return QuestionAnswerer(kwik_e_mart_app_path)
 
 
 @pytest.fixture
@@ -63,8 +65,7 @@ def food_ordering_answerer(food_ordering_app_path, es_client):
         data_file=DISH_DATA_FILE_PATH,
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path)
 
 
 @pytest.mark.extras
@@ -84,8 +85,7 @@ def food_ordering_with_bert(food_ordering_app_path, es_client):
         config=bert_qa_config,
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
 
 
 @pytest.mark.extras
@@ -105,8 +105,7 @@ def food_ordering_with_glove(food_ordering_app_path, es_client):
         config=glove_qa_config,
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path, config=glove_qa_config)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path, config=glove_qa_config)
 
 
 """ tests for elastic search based QA """
@@ -342,8 +341,7 @@ def answerer_nativeqa(kwik_e_mart_app_path):
         config=QA_CONFIG
     )
 
-    qa = QuestionAnswerer(kwik_e_mart_app_path)
-    return qa
+    return QuestionAnswerer(kwik_e_mart_app_path)
 
 
 @pytest.fixture
@@ -382,8 +380,7 @@ def food_ordering_answerer_nativeqa(food_ordering_app_path):
         config=QA_CONFIG
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path)
 
 
 @pytest.mark.extras
@@ -404,8 +401,7 @@ def food_ordering_with_bert_nativeqa(food_ordering_app_path):
         config=bert_qa_config,
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
 
 
 @pytest.mark.extras
@@ -426,8 +422,7 @@ def food_ordering_with_glove_nativeqa(food_ordering_app_path):
         config=glove_qa_config,
     )
 
-    qa = QuestionAnswerer(food_ordering_app_path, config=glove_qa_config)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path, config=glove_qa_config)
 
 
 """ tests for native QA """
@@ -669,8 +664,7 @@ def answerer_nativeqa_unloaded(kwik_e_mart_app_path):
 
     # next unload all indices and instantiate another object
     NativeQuestionAnswerer._unload_all_indices()
-    qa = QuestionAnswerer(kwik_e_mart_app_path, config=QA_CONFIG)
-    return qa
+    return QuestionAnswerer(kwik_e_mart_app_path, config=QA_CONFIG)
 
 
 @pytest.mark.extras
@@ -695,8 +689,7 @@ def food_ordering_with_bert_nativeqa_unloaded(food_ordering_app_path):
 
     # next unload all indices and instantiate another object
     NativeQuestionAnswerer._unload_all_indices()
-    qa = QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
-    return qa
+    return QuestionAnswerer(food_ordering_app_path, config=bert_qa_config)
 
 
 """ tests for native QA (but loads from already dumped models) """

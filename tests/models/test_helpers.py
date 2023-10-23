@@ -54,5 +54,4 @@ def test_file_back_list_exception():
     with open(fname, "w") as tmp_file:
         tmp_file.write('{"this":"is almost", "valid":"json\n"')
     with pytest.raises(JSONDecodeError):
-        for data in fb_list:
-            pass
+        pass

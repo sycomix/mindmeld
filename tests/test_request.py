@@ -94,7 +94,7 @@ def assert_tuple_of_immutable_maps(tuple_of_immutable_maps):
 
 def assert_tuple_of_tuple_of_immutable_maps(tuple_of_tuple_of_immutable_maps):
     assert isinstance(tuple_of_tuple_of_immutable_maps, tuple)
-    for idx_1, tuple_of_immutable_maps in enumerate(tuple_of_tuple_of_immutable_maps):
+    for tuple_of_immutable_maps in tuple_of_tuple_of_immutable_maps:
         assert_tuple_of_immutable_maps(tuple_of_immutable_maps)
 
 

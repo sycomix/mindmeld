@@ -111,10 +111,10 @@ class StemmerFactory:
             EnglishNLTKStemmer.__name__: EnglishNLTKStemmer,
             SnowballNLTKStemmer.__name__: SnowballNLTKStemmer,
         }
-        stemmer_class = stemmer_classes.get(stemmer)
-        if not stemmer_class:
+        if stemmer_class := stemmer_classes.get(stemmer):
+            return stemmer_class()
+        else:
             raise TypeError(f"{stemmer} is not a valid Stemmer type.")
-        return stemmer_class()
 
     @staticmethod
     def get_stemmer_by_language(language_code):

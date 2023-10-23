@@ -104,10 +104,8 @@ class WordSequenceEmbedding:
 
         # load historic word embeddings
         if os.path.exists(PREVIOUSLY_USED_WORD_EMBEDDINGS_FILE_PATH):
-            pkl_file = open(PREVIOUSLY_USED_WORD_EMBEDDINGS_FILE_PATH, "rb")
-            historic_word_embeddings = pickle.load(pkl_file)
-            pkl_file.close()
-
+            with open(PREVIOUSLY_USED_WORD_EMBEDDINGS_FILE_PATH, "rb") as pkl_file:
+                historic_word_embeddings = pickle.load(pkl_file)
         for word in historic_word_embeddings:
             if len(historic_word_embeddings[word]) == self.token_embedding_dimension:
                 self.token_to_embedding_mapping[word] = historic_word_embeddings.get(
@@ -116,9 +114,8 @@ class WordSequenceEmbedding:
 
     def save_embeddings(self):
         """Save extracted embeddings to historic pickle file."""
-        output = open(PREVIOUSLY_USED_WORD_EMBEDDINGS_FILE_PATH, "wb")
-        pickle.dump(self.token_to_embedding_mapping, output)
-        output.close()
+        with open(PREVIOUSLY_USED_WORD_EMBEDDINGS_FILE_PATH, "wb") as output:
+            pickle.dump(self.token_to_embedding_mapping, output)
 
 
 class CharacterSequenceEmbedding:
@@ -195,15 +192,12 @@ class CharacterSequenceEmbedding:
 
         # load historic word embeddings
         if os.path.exists(PREVIOUSLY_USED_CHAR_EMBEDDINGS_FILE_PATH):
-            pkl_file = open(PREVIOUSLY_USED_CHAR_EMBEDDINGS_FILE_PATH, "rb")
-            historic_char_embeddings = pickle.load(pkl_file)
-            pkl_file.close()
-
+            with open(PREVIOUSLY_USED_CHAR_EMBEDDINGS_FILE_PATH, "rb") as pkl_file:
+                historic_char_embeddings = pickle.load(pkl_file)
         for char in historic_char_embeddings:
             self.token_to_embedding_mapping[char] = historic_char_embeddings.get(char)
 
     def save_embeddings(self):
         """Save extracted embeddings to historic pickle file."""
-        output = open(PREVIOUSLY_USED_CHAR_EMBEDDINGS_FILE_PATH, "wb")
-        pickle.dump(self.token_to_embedding_mapping, output)
-        output.close()
+        with open(PREVIOUSLY_USED_CHAR_EMBEDDINGS_FILE_PATH, "wb") as output:
+            pickle.dump(self.token_to_embedding_mapping, output)

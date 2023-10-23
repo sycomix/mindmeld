@@ -56,10 +56,7 @@ class LabelMap:
         Returns:
             domain_to_intents (dict): Dict mapping domains to a list of intents.
         """
-        domain_to_intents = {}
-        for domain in query_tree:
-            domain_to_intents[domain] = list(query_tree[domain])
-        return domain_to_intents
+        return {domain: list(query_tree[domain]) for domain in query_tree}
 
     @staticmethod
     def _get_domain_mappings(domain_to_intents: Dict) -> Dict:
@@ -71,11 +68,8 @@ class LabelMap:
         Returns:
             domain2id (dict): dict with domain to id mappings.
         """
-        domain2id = {}
         domains = list(domain_to_intents)
-        for index, domain in enumerate(domains):
-            domain2id[domain] = index
-        return domain2id
+        return {domain: index for index, domain in enumerate(domains)}
 
     @staticmethod
     def _get_intent_mappings(domain_to_intents: Dict) -> Dict:
@@ -89,9 +83,10 @@ class LabelMap:
         """
         domain_to_intent2id = {}
         for domain in domain_to_intents:
-            intent_labels = {}
-            for index, intent in enumerate(domain_to_intents[domain]):
-                intent_labels[intent] = index
+            intent_labels = {
+                intent: index
+                for index, intent in enumerate(domain_to_intents[domain])
+            }
             domain_to_intent2id[domain] = intent_labels
         return domain_to_intent2id
 
@@ -101,8 +96,7 @@ class LabelMap:
         Returns:
             reversed_dict (dict): Reversed dictionary.
         """
-        reversed_dict = {v: k for k, v in dictionary.items()}
-        return reversed_dict
+        return {v: k for k, v in dictionary.items()}
 
     @staticmethod
     def _reverse_nested_dict(dictionary: Dict[str, Dict[str, int]]):
@@ -110,11 +104,10 @@ class LabelMap:
         Returns:
             reversed_dict (dict): Reversed dictionary.
         """
-        reversed_dict = {}
-
-        for parent_key, parent_value in dictionary.items():
-            reversed_dict[parent_key] = LabelMap._reverse_dict(parent_value)
-        return reversed_dict
+        return {
+            parent_key: LabelMap._reverse_dict(parent_value)
+            for parent_key, parent_value in dictionary.items()
+        }
 
     @staticmethod
     def get_class_labels(
@@ -179,7 +172,7 @@ class LogQueriesLoader:
         Returns:
             filtered_text_queries (List[str]): a List of filtered text queries.
         """
-        return list(set(q for q in log_queries_iter))
+        return list(set(log_queries_iter))
 
     def convert_text_queries_to_processed(
         self, text_queries: List[str]

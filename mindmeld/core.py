@@ -162,8 +162,7 @@ class Span:
         return selected_spans
 
     def __iter__(self):
-        for index in range(self.start, self.end + 1):
-            yield index
+        yield from range(self.start, self.end + 1)
 
     def __len__(self):
         return self.end - self.start + 1
@@ -199,9 +198,7 @@ class Span:
         return NotImplemented
 
     def __repr__(self):
-        return "{}(start={}, end={})".format(
-            self.__class__.__name__, self.start, self.end
-        )
+        return f"{self.__class__.__name__}(start={self.start}, end={self.end})"
 
 
 class Query:
@@ -421,9 +418,7 @@ class Query:
 
     def _process_index(self, index, form_in):
         if form_in == TEXT_FORM_NORMALIZED:
-            raise ValueError(
-                "'{}' form cannot be processed".format(TEXT_FORM_NORMALIZED)
-            )
+            raise ValueError(f"'{TEXT_FORM_NORMALIZED}' form cannot be processed")
         mapping_key = (form_in, (form_in + 1))
         try:
             mapping = self._char_maps[mapping_key]
@@ -434,11 +429,11 @@ class Query:
         try:
             return mapping[index] if mapping else index
         except KeyError as e:
-            raise ValueError("Invalid index {}".format(index)) from e
+            raise ValueError(f"Invalid index {index}") from e
 
     def _unprocess_index(self, index, form_in):
         if form_in == TEXT_FORM_RAW:
-            raise ValueError("'{}' form cannot be unprocessed".format(TEXT_FORM_RAW))
+            raise ValueError(f"'{TEXT_FORM_RAW}' form cannot be unprocessed")
         mapping_key = (form_in, (form_in - 1))
         try:
             mapping = self._char_maps[mapping_key]
@@ -449,11 +444,12 @@ class Query:
         try:
             return mapping[index] if mapping else index
         except KeyError as e:
-            raise ValueError("Invalid index {}".format(index)) from e
+            raise ValueError(f"Invalid index {index}") from e
 
     def get_token_ngram_raw_ngram_span(self, tokens, start_token_index, end_token_index):
         token_ngram = tuple(
-            [token['entity'] for token in tokens[start_token_index:end_token_index + 1]]
+            token['entity']
+            for token in tokens[start_token_index : end_token_index + 1]
         )
         last_raw_start = tokens[end_token_index]['raw_start']
         last_raw_entity = tokens[end_token_index]['entity']
@@ -882,13 +878,7 @@ class NestedEntity:
         return NotImplemented
 
     def __str__(self):
-        return "{}{} '{}' {}-{}".format(
-            self.entity.type,
-            ":" + self.entity.role if self.entity.role else "",
-            self.text,
-            self.span.start,
-            self.span.end,
-        )
+        return f"""{self.entity.type}{f":{self.entity.role}" if self.entity.role else ""} '{self.text}' {self.span.start}-{self.span.end}"""
 
     def __repr__(self):
         msg = "<{} {!r} ({!r}) char: [{!r}-{!r}], tok: [{!r}-{!r}]>"
@@ -1073,9 +1063,7 @@ class FormEntity:
         self.role = role
         if isinstance(responses, str):
             responses = [responses]
-        self.responses = responses or [
-            "Please provide value for: {}".format(self.entity)
-        ]
+        self.responses = responses or [f"Please provide value for: {self.entity}"]
 
         if isinstance(retry_response, str):
             retry_response = [retry_response]
@@ -1187,17 +1175,16 @@ def resolve_entity_conflicts(query_entities):
                     del filtered[j]
                     continue
 
-                if target.entity.confidence < other.entity.confidence:
-                    logger.debug(
-                        "Removing {{%s|%s}} entity in query %d since it overlaps "
-                        "with another.",
-                        target.text,
-                        target.entity.type,
-                        i,
-                    )
-                    del filtered[i]
-                    include_target = False
-                    break
+                logger.debug(
+                    "Removing {{%s|%s}} entity in query %d since it overlaps "
+                    "with another.",
+                    target.text,
+                    target.entity.type,
+                    i,
+                )
+                del filtered[i]
+                include_target = False
+                break
             j += 1
         if include_target:
             i += 1

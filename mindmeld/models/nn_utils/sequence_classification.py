@@ -296,8 +296,8 @@ class BertForSequenceClassification(BaseSequenceClassification):
         embedder_type = params.get("embedder_type", EmbedderType.BERT.value)
         if EmbedderType(embedder_type) != EmbedderType.BERT:
             msg = f"{self.name} can only be used with 'embedder_type': " \
-                  f"'{EmbedderType.BERT.value}'. " \
-                  f"Other values passed through config params are not allowed."
+                      f"'{EmbedderType.BERT.value}'. " \
+                      f"Other values passed through config params are not allowed."
             raise ValueError(msg)
 
         safe_values = {
@@ -311,12 +311,12 @@ class BertForSequenceClassification(BaseSequenceClassification):
             v_inputted = params.get(k, v)
             if v != v_inputted:
                 msg = f"{self.name} can be best used with '{k}' equal to '{v}' but found " \
-                      f"the value '{v_inputted}'. Use the non-default value with caution as it " \
-                      f"may lead to unexpected results and longer training times depending on " \
-                      f"the choice of pretrained model."
+                          f"the value '{v_inputted}'. Use the non-default value with caution as it " \
+                          f"may lead to unexpected results and longer training times depending on " \
+                          f"the choice of pretrained model."
                 logger.warning(msg)
             else:
-                params.update({k: v})
+                params[k] = v
 
         params.update({
             "embedder_type": embedder_type,
@@ -352,10 +352,18 @@ class BertForSequenceClassification(BaseSequenceClassification):
         no_decay = ["bias", 'LayerNorm.bias', "LayerNorm.weight",
                     'layer_norm.bias', 'layer_norm.weight']
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in params if not any(nd in n for nd in no_decay)],
-             'weight_decay': 0.01},
-            {'params': [p for n, p in params if any(nd in n for nd in no_decay)],
-             'weight_decay': 0.0}
+            {
+                'params': [
+                    p for n, p in params if all(nd not in n for nd in no_decay)
+                ],
+                'weight_decay': 0.01,
+            },
+            {
+                'params': [
+                    p for n, p in params if any(nd in n for nd in no_decay)
+                ],
+                'weight_decay': 0.0,
+            },
         ]
         optimizer = getattr(torch.optim, self.params.optimizer)(
             optimizer_grouped_parameters,
@@ -367,10 +375,13 @@ class BertForSequenceClassification(BaseSequenceClassification):
 
     def _get_dumpable_state_dict(self):
         if not self.params.update_embeddings and not self.params.save_frozen_bert_weights:
-            state_dict = OrderedDict(
-                {k: v for k, v in self.state_dict().items() if not k.startswith("bert_model")}
+            return OrderedDict(
+                {
+                    k: v
+                    for k, v in self.state_dict().items()
+                    if not k.startswith("bert_model")
+                }
             )
-            return state_dict
         return self.state_dict()
 
     def _init_core(self):

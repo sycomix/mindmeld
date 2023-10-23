@@ -24,7 +24,7 @@ def _is_module_available(module_name: str):
     Returns:
         bool, if or not the given module exists
     """
-    return bool(importlib.util.find_spec(module_name) is not None)
+    return importlib.util.find_spec(module_name) is not None
 
 
 def _get_module_or_attr(module_name: str, func_name: str = None):
@@ -48,4 +48,6 @@ def torch_op(op, *args, sub="", **kwargs):
         instead of ```torch.nn.functional.normalize(arg1, arg2, p=2, dim=1)```
     """
 
-    return _get_module_or_attr(f"torch{'.' + sub if sub else ''}", op)(*args, **kwargs)
+    return _get_module_or_attr(f"torch{f'.{sub}' if sub else ''}", op)(
+        *args, **kwargs
+    )

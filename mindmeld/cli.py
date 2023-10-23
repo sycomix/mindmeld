@@ -159,10 +159,7 @@ def _bash_helper(command_list):
     _, error = p.communicate()
     error_string = error.decode("utf-8")
 
-    if p.returncode != 0:
-        return False, error_string
-
-    return True, None
+    return (False, error_string) if p.returncode != 0 else (True, None)
 
 
 # pylint: disable=too-many-return-statements
@@ -275,7 +272,14 @@ def dvc(ctx, init, setup_dagshub, save, checkout, help_, destroy):
 
         # Modify remote URL to be the DAGsHub project
         success, error_string = _bash_helper(
-            ["dvc", "remote", "modify", "myremote", "url", dagshub_remote_path + '.dvc']
+            [
+                "dvc",
+                "remote",
+                "modify",
+                "myremote",
+                "url",
+                f'{dagshub_remote_path}.dvc',
+            ]
         )
         if not success:
             logger.error("Error during DAGsHub remote set up: %s", error_string)
@@ -334,7 +338,7 @@ def dvc(ctx, init, setup_dagshub, save, checkout, help_, destroy):
             return
 
         success, error_string = _bash_helper(
-            ["git", "add", "{}/.generated.dvc".format(app_path)]
+            ["git", "add", f"{app_path}/.generated.dvc"]
         )
         if not success:
             logger.error("Error adding model dvc file: %s", error_string)
@@ -748,9 +752,7 @@ def _find_duckling_os_executable():
 def num_parser(ctx, start, port):
     """Starts or stops the local numerical parser service."""
     if start:
-        pid = _get_duckling_pid()
-
-        if pid:
+        if pid := _get_duckling_pid():
             # if duckling is already running, leave it be
             logger.info("Numerical parser running, PID %s", pid[0])
             return
@@ -831,10 +833,10 @@ def num_parser(ctx, start, port):
 
 
 def _get_duckling_pid():
-    pid = []
-    for line in os.popen("ps ax | grep duckling | grep -v grep"):
-        pid.append(line.split()[0])
-    return pid
+    return [
+        line.split()[0]
+        for line in os.popen("ps ax | grep duckling | grep -v grep")
+    ]
 
 
 @shared_cli.command("annotate", context_settings=CONTEXT_SETTINGS)

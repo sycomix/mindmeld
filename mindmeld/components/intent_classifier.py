@@ -126,10 +126,9 @@ class IntentClassifier(Classifier):
         return (queries.queries(), queries.intents())
 
     def _get_examples_and_labels_hash(self, queries):
-        raw_queries = []
-        for intent, raw_query in zip(queries.intents(), queries.raw_queries()):
-            raw_queries.append(
-                self.domain + "###" + intent + "###" + mark_down(raw_query)
-            )
+        raw_queries = [
+            f"{self.domain}###{intent}###{mark_down(raw_query)}"
+            for intent, raw_query in zip(queries.intents(), queries.raw_queries())
+        ]
         raw_queries.sort()
         return self._resource_loader.hash_list(raw_queries)

@@ -23,5 +23,4 @@ def invoke_action(body):
 
         reply = Directive(name="reply", payload={"text": msg}, type="view")
         directives.append(reply)
-    responder = Responder(directives=directives, frame={})
-    return responder
+    return Responder(directives=directives, frame={})

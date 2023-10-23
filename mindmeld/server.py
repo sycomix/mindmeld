@@ -180,21 +180,15 @@ class MindMeldServer:
             else:
                 ip_address = req.remote_addr
 
-            if req.method == "GET":
-                request_data = req.args.to_dict()
-            else:
-                request_data = req.get_json()
-
-            # TODO add hook for app to modify logged info
+            request_data = req.args.to_dict() if req.method == "GET" else req.get_json()
+                # TODO add hook for app to modify logged info
 
         except (KeyError, ValueError, AttributeError) as exc:
             logger.warning("Error occured while logging request")
             logger.debug("Response: %s\nerror: %s", response, exc)
             return
 
-        log_request_data = {}
-        log_request_data["response"] = response_data
-        log_request_data["request"] = request_data
+        log_request_data = {"response": response_data, "request": request_data}
         if hasattr(g, "response_time"):
             log_request_data["response_time"] = g.response_time
         if hasattr(g, "app_name"):

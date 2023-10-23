@@ -98,16 +98,15 @@ class EntityResolverFactory:
             if model_type == "resolver":
                 raise ValueError(
                     "Could not find `resolver_type` in `model_settings` of entity resolver")
-            else:
-                msg = "Using deprecated config format for Entity Resolver. " \
+            msg = "Using deprecated config format for Entity Resolver. " \
                       "See https://www.mindmeld.com/docs/userguide/entity_resolver.html " \
                       "for more details."
-                warnings.warn(msg, DeprecationWarning)
-                er_config = copy.deepcopy(er_config)
-                model_settings = er_config.get("model_settings", {})
-                model_settings.update({"resolver_type": model_type})
-                er_config["model_settings"] = model_settings
-                er_config["model_type"] = "resolver"
+            warnings.warn(msg, DeprecationWarning)
+            er_config = copy.deepcopy(er_config)
+            model_settings = er_config.get("model_settings", {})
+            model_settings.update({"resolver_type": model_type})
+            er_config["model_settings"] = model_settings
+            er_config["model_type"] = "resolver"
 
         return er_config
 
@@ -252,12 +251,12 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
         # hash based on the KB data before any processing
         new_hash = self._get_model_hash(entities_data)
 
-        # see if a model is already available  hash value
-        cached_model_path = self._resource_loader.hash_to_model_path.get(new_hash)
-        if cached_model_path:
+        if cached_model_path := self._resource_loader.hash_to_model_path.get(
+            new_hash
+        ):
             msg = f"A fit {self.__class__.__name__} model for the found KB data is already " \
-                  f"available. Loading the model instead of fitting again. Pass 'clean=True' to " \
-                  f"the .fit() method in case you wish to force a re-fitting."
+                      f"available. Loading the model instead of fitting again. Pass 'clean=True' to " \
+                      f"the .fit() method in case you wish to force a re-fitting."
             logger.info(msg)
             self.load(cached_model_path, entity_map=entity_map)
             return
@@ -268,7 +267,7 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             self._fit(clean, entity_map)
         except Exception as e:
             msg = f"Error in {self.__class__.__name__} while fitting the resolver model with " \
-                  f"clean={clean}"
+                      f"clean={clean}"
             raise EntityResolverError(msg) from e
         self.hash = new_hash
 
@@ -303,10 +302,11 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
 
         nbest_entities = entity_or_list_of_entities
         if not isinstance(nbest_entities, (list, tuple)):
-            nbest_entities = tuple([nbest_entities])
+            nbest_entities = (nbest_entities, )
 
         nbest_entities = tuple(
-            [Entity(e, self.type) if isinstance(e, str) else e for e in nbest_entities]
+            Entity(e, self.type) if isinstance(e, str) else e
+            for e in nbest_entities
         )
 
         if self._is_system_entity:
@@ -325,7 +325,7 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             results = self._predict(nbest_entities, allowed_cnames)
         except Exception as e:
             msg = f"Error in {self.__class__.__name__} while resolving entities for the " \
-                  f"input: {entity_or_list_of_entities}"
+                      f"input: {entity_or_list_of_entities}"
             raise EntityResolverError(msg) from e
 
         return self._trim_and_sort_results(results, top_n)
@@ -367,14 +367,14 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             # in case of classifiers (domain, intent, etc.), dumping configs is handled by the
             # models abstract layer
             head, ext = os.path.splitext(path)
-            resolver_config_path = head + ".config" + ext
+            resolver_config_path = f"{head}.config{ext}"
             os.makedirs(os.path.dirname(resolver_config_path), exist_ok=True)
             with open(resolver_config_path, "wb") as fp:
                 pickle.dump(self.resolver_configurations, fp)
 
             # save data hash
             # this hash is useful for avoiding re-fitting the resolver on unchanged data
-            hash_path = path + ".hash"
+            hash_path = f"{path}.hash"
             os.makedirs(os.path.dirname(hash_path), exist_ok=True)
             with open(hash_path, "w") as hash_file:
                 hash_file.write(self.hash)
@@ -402,8 +402,8 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
 
         if self.ready:
             msg = f"The {self.__class__.__name__} entity resolver for entity_type {self.type} is " \
-                  f"already loaded. If you wish to do a clean fit, you can call the fit method " \
-                  f"as follows: .fit(clean=True)"
+                      f"already loaded. If you wish to do a clean fit, you can call the fit method " \
+                      f"as follows: .fit(clean=True)"
             logger.info(msg)
             return
 
@@ -425,14 +425,14 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
         # hash based on the KB data before any processing
         new_hash = self._get_model_hash(entities_data)
 
-        hash_path = path + ".hash"
+        hash_path = f"{path}.hash"
         with open(hash_path, "r") as hash_file:
             self.hash = hash_file.read()
         if new_hash != self.hash:
             msg = f"Found KB data to have changed when loading {self.__class__.__name__} " \
-                  f"resolver ({str(self)}). Please fit using 'clean=True' " \
-                  f"before loading a resolver fopr this KB. Found new data hash to be " \
-                  f"'{new_hash}' whereas the hash during dumping was '{self.hash}'"
+                      f"resolver ({str(self)}). Please fit using 'clean=True' " \
+                      f"before loading a resolver fopr this KB. Found new data hash to be " \
+                      f"'{new_hash}' whereas the hash during dumping was '{self.hash}'"
             logger.error(msg)
             raise ValueError(msg)
 
@@ -441,14 +441,14 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
 
         # load resolver configs if it exists
         head, ext = os.path.splitext(path)
-        resolver_config_path = head + ".config" + ext
+        resolver_config_path = f"{head}.config{ext}"
         if os.path.exists(resolver_config_path):
             with open(resolver_config_path, "rb") as fp:
                 self.resolver_configurations = pickle.load(fp)
         else:
             msg = f"Cannot find a configs path for the resolver while loading the " \
-                  f"resolver:{self.__class__.__name__}. This could have happened if you missed " \
-                  f"to call the .dump() method of resolver before calling the .load() method."
+                      f"resolver:{self.__class__.__name__}. This could have happened if you missed " \
+                      f"to call the .dump() method of resolver before calling the .load() method."
             logger.debug(msg)
             self.resolver_configurations = {}
 
@@ -457,7 +457,7 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             self._load(path, entity_map=entity_map)
         except Exception as e:
             msg = f"Error in {self.__class__.__name__} while loading the resolver from the " \
-                  f"path: {path}"
+                      f"path: {path}"
             raise EntityResolverError(msg) from e
 
         self.ready = True
@@ -534,9 +534,9 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             _id = ent_object.get("id")
             cname = ent_object.get("cname")
             whitelist = list(dict.fromkeys(ent_object.get("whitelist", [])))
-            if cname is None and len(whitelist) == 0:
+            if cname is None and not whitelist:
                 msg = f"Found no canonical name field 'cname' while processing KB objects. " \
-                      f"The observed KB entity object is: {ent_object}"
+                          f"The observed KB entity object is: {ent_object}"
                 raise ValueError(msg)
             elif cname is None and len(whitelist):
                 cname = whitelist[0]
@@ -549,7 +549,7 @@ class BaseEntityResolver(ABC):  # pylint: disable=too-many-instance-attributes
             if not _id:
                 _id = uuid.uuid4()
                 msg = f"Found an entry in entity_map without a corresponding id. " \
-                      f"Creating a random new id ({_id}) for this object."
+                          f"Creating a random new id ({_id}) for this object."
                 logger.warning(msg)
             _id = str(_id)
             all_ids.update([_id])
@@ -908,7 +908,7 @@ class ElasticsearchEntityResolver(BaseEntityResolver):
                 # index by updating the knowledge base object with additional synonym whitelist
                 # field. Otherwise, by default we import to synonym index in ES.
                 if index_type == INDEX_TYPE_KB and field_name:
-                    syn_field = field_name + "$whitelist"
+                    syn_field = f"{field_name}$whitelist"
                     action["_op_type"] = "update"
                     action["doc"] = {syn_field: syn_list}
                 else:
@@ -978,15 +978,13 @@ class ElasticsearchEntityResolver(BaseEntityResolver):
                 self._app_namespace, kb_index, self._es_host, self._es_client
             ):
                 raise ValueError(
-                    "Cannot import synonym data to knowledge base. The knowledge base "
-                    "index name '{}' is not valid.".format(kb_index)
+                    f"Cannot import synonym data to knowledge base. The knowledge base index name '{kb_index}' is not valid."
                 )
             if kb_field not in get_field_names(
                 self._app_namespace, kb_index, self._es_host, self._es_client
             ):
                 raise ValueError(
-                    "Cannot import synonym data to knowledge base. The knowledge base "
-                    "field name '{}' is not valid.".format(kb_field)
+                    f"Cannot import synonym data to knowledge base. The knowledge base field name '{kb_field}' is not valid."
                 )
             if entities and not entities[0].get("id"):
                 raise ValueError(
@@ -1457,7 +1455,7 @@ class TfIdfSparseCosSimEntityResolver(BaseEntityResolver):
         # get char ngrams
         results = self._char_ngrams_analyzer(string)
         # add individual words
-        words = re.split(r'[\s{}]+'.format(re.escape(punctuation)), string.strip())
+        words = re.split(f'[\s{re.escape(punctuation)}]+', string.strip())
         results.extend(words)
         return results
 
@@ -1476,10 +1474,7 @@ class TfIdfSparseCosSimEntityResolver(BaseEntityResolver):
             results.extend([''.join(gram) for gram in zip(*[string[i:] for i in range(n)])])
         results = list(set(results))
         results.remove(' ')
-        # adding lowercased single characters might add more noise
-        results = [r for r in results if not (len(r) == 1 and r.islower())]
-        # returns empty list of an empty string
-        return results
+        return [r for r in results if not (len(r) == 1 and r.islower())]
 
     def find_similarity(
         self, src_texts, top_n=DEFAULT_TOP_N, scores_normalizer=None,
@@ -1534,8 +1529,8 @@ class TfIdfSparseCosSimEntityResolver(BaseEntityResolver):
                     similarity_scores = (similarity_scores - _mean) / denominator
                 else:
                     msg = f"Allowed values for `scores_normalizer` are only " \
-                          f"{['min_max_scaler', 'standard_scaler']}. Continuing without " \
-                          f"normalizing similarity scores."
+                              f"{['min_max_scaler', 'standard_scaler']}. Continuing without " \
+                              f"normalizing similarity scores."
                     logger.error(msg)
 
             if _return_as_dict:
@@ -1554,15 +1549,10 @@ class TfIdfSparseCosSimEntityResolver(BaseEntityResolver):
                         result = sorted(zip(self._unique_synonyms, similarity_scores),
                                         key=lambda x: x[1],
                                         reverse=True)
-                    results.append(result)
                 else:
                     result = list(zip(self._unique_synonyms, similarity_scores))
-                    results.append(result)
-
-        if is_single:
-            return results[0]
-
-        return results
+                results.append(result)
+        return results[0] if is_single else results
 
     def load_deprecated(self):
         self.fit()
@@ -1693,8 +1683,11 @@ class EmbedderCosSimEntityResolver(BaseEntityResolver):
         allowed_syns = None
         if allowed_cnames:
             syn2cnames = self.processed_entity_map["synonyms"]
-            allowed_syns = [syn for syn, cnames in syn2cnames.items()
-                            if any([cname in allowed_cnames for cname in cnames])]
+            allowed_syns = [
+                syn
+                for syn, cnames in syn2cnames.items()
+                if any(cname in allowed_cnames for cname in cnames)
+            ]
 
         try:
             scored_items = self._embedder_model.find_similarity(
@@ -1713,7 +1706,7 @@ class EmbedderCosSimEntityResolver(BaseEntityResolver):
                         values.append(item_value)
         except KeyError as e:
             msg = f"Failed to resolve entity {top_entity.text} for type {top_entity.type}; set " \
-                  f"'clean=True' for computing embeddings of newly added items in mappings.json"
+                      f"'clean=True' for computing embeddings of newly added items in mappings.json"
             logger.error(str(e))
             logger.error(msg)
             return []
@@ -1738,7 +1731,7 @@ class EmbedderCosSimEntityResolver(BaseEntityResolver):
         self._embedder_model.clear_cache()  # delete the temp cache as .dump() method is now used
 
         head, ext = os.path.splitext(path)
-        embedder_cache_path = head + ".embedder_cache" + ext
+        embedder_cache_path = f"{head}.embedder_cache{ext}"
         self._embedder_model.dump_cache(cache_path=embedder_cache_path)
         self._model_settings["embedder_cache_path"] = embedder_cache_path
 
@@ -1812,7 +1805,7 @@ class EmbedderCosSimEntityResolver(BaseEntityResolver):
                 nbest_entities = tuple(entity)
             else:
                 top_entity = entity
-                nbest_entities = tuple([entity])
+                nbest_entities = (entity, )
 
             nbest_entities_list.append(nbest_entities)
 
@@ -1872,15 +1865,13 @@ class SentenceBertCosSimEntityResolver(EmbedderCosSimEntityResolver):
             "normalize_token_embs": False,
         }
         # update er_configs in the kwargs with the defaults if any of the default keys are missing
-        kwargs.update({
-            "config": {
-                **kwargs.get("config", {}),
-                "model_settings": {
-                    **defaults,
-                    **kwargs.get("config", {}).get("model_settings", {}),
-                },
-            }
-        })
+        kwargs["config"] = {
+            **kwargs.get("config", {}),
+            "model_settings": {
+                **defaults,
+                **kwargs.get("config", {}).get("model_settings", {}),
+            },
+        }
 
         super().__init__(app_path, entity_type, **kwargs)
 

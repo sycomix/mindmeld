@@ -136,13 +136,12 @@ class DialogueStateRule:
                     kwargs[plural], (list, set, tuple)
                 ):
                     resolved[plural] = set(kwargs[plural])
-                else:
-                    if single in kwargs:
-                        msg = "Invalid argument type {!r} for {!r}"
-                        raise ValueError(msg.format(kwargs[single], single))
-                    elif plural in kwargs:
-                        msg = "Invalid argument type {!r} for {!r}"
-                        raise ValueError(msg.format(kwargs[plural], plural))
+                elif single in kwargs:
+                    msg = "Invalid argument type {!r} for {!r}"
+                    raise ValueError(msg.format(kwargs[single], single))
+                elif plural in kwargs:
+                    msg = "Invalid argument type {!r} for {!r}"
+                    raise ValueError(msg.format(kwargs[plural], plural))
             elif keys[0] in kwargs:
                 resolved[keys[0]] = kwargs[keys[0]]
 
@@ -198,11 +197,7 @@ class DialogueStateRule:
 
         # check expected entity types are present
         if self.entity_types is not None:
-            # TODO cache entity types
-            entity_types = set()
-            for entity in request.entities:
-                entity_types.add(entity["type"])
-
+            entity_types = {entity["type"] for entity in request.entities}
             if len(self.entity_types & entity_types) < len(self.entity_types):
                 return False
 
@@ -346,10 +341,7 @@ class DialogueManager:
         if handler is not None:
             old_handler = self.handler_map.get(name)
             if old_handler is not None and old_handler != handler:
-                msg = (
-                    "Handler mapping is overwriting an existing dialogue state: %s"
-                    % name
-                )
+                msg = f"Handler mapping is overwriting an existing dialogue state: {name}"
                 raise AssertionError(msg)
             self.handler_map[name] = handler
 
@@ -398,15 +390,13 @@ class DialogueManager:
                 target_dialogue_state = e.target_dialogue_state
             else:
                 self.logger.warning(
-                    "Ignoring target dialogue state '{}'".format(
-                        e.target_dialogue_state
-                    )
+                    f"Ignoring target dialogue state '{e.target_dialogue_state}'"
                 )
                 target_dialogue_state = None
 
         if target_dialogue_state:
             self.logger.warning(
-                "Ignoring target dialogue state '{}'".format(target_dialogue_state)
+                f"Ignoring target dialogue state '{target_dialogue_state}'"
             )
         return self._attempt_handler_sync(request, responder)
 
@@ -455,15 +445,13 @@ class DialogueManager:
                 target_dialogue_state = e.target_dialogue_state
             else:
                 self.logger.warning(
-                    "Ignoring target dialogue state '{}'".format(
-                        e.target_dialogue_state
-                    )
+                    f"Ignoring target dialogue state '{e.target_dialogue_state}'"
                 )
                 target_dialogue_state = None
 
         if target_dialogue_state:
             self.logger.warning(
-                "Ignoring target dialogue state '{}'".format(target_dialogue_state)
+                f"Ignoring target dialogue state '{target_dialogue_state}'"
             )
         return await self._attempt_handler_async(request, responder)
 
@@ -492,9 +480,7 @@ class DialogueManager:
             and "dialogue_state" in result_handler
         ):
             # TODO: check if this flow is executed, currently not covered in tests
-            dialogue_state = "{}.{}".format(
-                dialogue_state, result_handler["dialogue_state"]
-            )
+            dialogue_state = f'{dialogue_state}.{result_handler["dialogue_state"]}'
 
         responder.dialogue_state = dialogue_state
         return responder
@@ -512,16 +498,17 @@ class DialogueManager:
         )
 
     def _get_dialogue_state(self, request, target_dialogue_state=None):
-        dialogue_state = None
-        for rule in self.rules:
-            if target_dialogue_state:
-                if target_dialogue_state == rule.dialogue_state:
-                    dialogue_state = rule.dialogue_state
-                    break
-            else:
-                if rule.apply(request):
-                    dialogue_state = rule.dialogue_state
-                    break
+        dialogue_state = next(
+            (
+                rule.dialogue_state
+                for rule in self.rules
+                if target_dialogue_state
+                and target_dialogue_state == rule.dialogue_state
+                or not target_dialogue_state
+                and rule.apply(request)
+            ),
+            None,
+        )
         if dialogue_state is None:
             msg = "Failed to find dialogue state for {domain}.{intent}".format(
                 domain=request.domain, intent=request.intent
@@ -604,7 +591,7 @@ class DialogueFlow(DialogueManager):
     @property
     def flow_state(self):
         """The state of the flow (<name>_flow)."""
-        return self._name + "_flow"
+        return f"{self._name}_flow"
 
     @property
     def dialogue_manager(self):
@@ -765,9 +752,7 @@ class AutoEntityFilling:
 
     def _set_next_turn(self, request, responder):
         """Set target dialogue state to the entrance handler's name"""
-        responder.params.allowed_intents = tuple(
-            ["{}.{}".format(request.domain, request.intent)]
-        )
+        responder.params.allowed_intents = (f"{request.domain}.{request.intent}", )
         responder.params.target_dialogue_state = self._handler.__name__
 
     def _exit_flow(self, responder):
@@ -796,9 +781,7 @@ class AutoEntityFilling:
             Query: A newly constructed query
         """
         query_factory = self._app.app_manager.nlp.resource_loader.query_factory
-        query = query_factory.create_query(text, time_zone, timestamp, locale, language)
-
-        return query
+        return query_factory.create_query(text, time_zone, timestamp, locale, language)
 
     def _validate(self, request, slot):
         """Validates the user input based on the entity type and validation type.
@@ -921,7 +904,7 @@ class AutoEntityFilling:
             text=request.text,
             domain=request.domain,
             intent=request.intent,
-            entities=tuple([slot.value for slot in self._local_entity_form]),
+            entities=tuple(slot.value for slot in self._local_entity_form),
             context=request.context or {},
             history=request.history or [],
             frame=responder.frame or {},
@@ -1190,8 +1173,7 @@ class DialogueResponder:
             self._params = value or Params()
 
     def __iter__(self):
-        for key, value in DEFAULT_RESPONSE_SCHEMA.dump(self).items():
-            yield key, value
+        yield from DEFAULT_RESPONSE_SCHEMA.dump(self).items()
 
     def reply(self, text):
         """Adds a 'reply' directive.
@@ -1411,9 +1393,7 @@ class Conversation:
 
         response = self.process(text, params=params)
 
-        # handle directives
-        response_texts = [self._follow_directive(a) for a in response.directives]
-        return response_texts
+        return [self._follow_directive(a) for a in response.directives]
 
     async def _say_async(self, text, params=None):
         """Send a message in the conversation. The message will be
@@ -1430,9 +1410,7 @@ class Conversation:
         """
         response = await self.process(text, params=params)
 
-        # handle directives
-        response_texts = [self._follow_directive(a) for a in response.directives]
-        return response_texts
+        return [self._follow_directive(a) for a in response.directives]
 
     def process(self, text, params=None, force_sync=False):
         """Send a message in the conversation. The message will be processed by
@@ -1549,14 +1527,10 @@ class Conversation:
                 suggestions = directive["payload"]
                 if not suggestions:
                     raise ValueError
-                msg = "Suggestion{}:".format("" if len(suggestions) == 1 else "s")
+                msg = f'Suggestion{"" if len(suggestions) == 1 else "s"}:'
                 texts = []
                 for idx, suggestion in enumerate(suggestions):
-                    if idx > 0:
-                        msg += ", {!r}"
-                    else:
-                        msg += " {!r}"
-
+                    msg += ", {!r}" if idx > 0 else " {!r}"
                     texts.append(self._generate_suggestion_text(suggestion))
                 msg = msg.format(*texts)
             elif directive_name == DirectiveNames.LIST:
@@ -1581,7 +1555,7 @@ class Conversation:
         if "text" in suggestion:
             pieces.append(suggestion["text"])
         if suggestion["type"] != "text":
-            pieces.append("({})".format(suggestion["type"]))
+            pieces.append(f'({suggestion["type"]})')
 
         return " ".join(pieces)
 

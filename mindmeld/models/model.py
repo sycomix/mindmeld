@@ -143,7 +143,7 @@ class ModelConfig:
         args_str = ", ".join(
             "{}={!r}".format(key, getattr(self, key)) for key in self.__slots__
         )
-        return "{}({})".format(self.__class__.__name__, args_str)
+        return f"{self.__class__.__name__}({args_str})"
 
     def to_dict(self) -> Dict:
         """Converts the model config object into a dict
@@ -151,10 +151,7 @@ class ModelConfig:
         Returns:
             dict: A dict version of the config
         """
-        result = {}
-        for attr in self.__slots__:
-            result[attr] = getattr(self, attr)
-        return result
+        return {attr: getattr(self, attr) for attr in self.__slots__}
 
     def to_json(self) -> str:
         """Converts the model config object to JSON
@@ -208,7 +205,7 @@ class ModelConfig:
                     "thresholds", [1] * len(lengths)
                 )
         elif self.model_type == "tagger":
-            feature_name = feature_name + "-seq"
+            feature_name = f"{feature_name}-seq"
             if feature_name in self.features:
                 lengths = self.features[feature_name][
                     "ngram_lengths_to_start_positions"
@@ -369,7 +366,7 @@ class AbstractModel(ABC):
     @staticmethod
     def _get_model_config_save_path(path: str) -> str:
         head, ext = os.path.splitext(path)
-        model_config_save_path = head + ".config" + ext
+        model_config_save_path = f"{head}.config{ext}"
         os.makedirs(os.path.dirname(model_config_save_path), exist_ok=True)
         return model_config_save_path
 
@@ -382,7 +379,6 @@ class AbstractModel(ABC):
     def register_resources(self, **kwargs):  # pylint: disable=no-self-use
         # Resources for feature extractors are not required for deep neural models
         del kwargs
-        pass
 
     def get_resource(self, name) -> Any:
         return self._resources.get(name)
@@ -727,13 +723,13 @@ class Model(AbstractModel):
             elif rname == WORD_NGRAM_FREQ_RSC:
                 l, t = self.config.get_ngram_lengths_and_thresholds(rname)
                 resource_builders[rname] = \
-                    resource_loader.WordNgramFreqBuilder(l, t, enable_stemming)
+                        resource_loader.WordNgramFreqBuilder(l, t, enable_stemming)
             elif rname == QUERY_FREQ_RSC:
                 resource_builders[rname] = resource_loader.QueryFreqBuilder(enable_stemming)
 
         if resource_builders:
             for query in examples:
-                for rname, builder in resource_builders.items():
+                for builder in resource_builders.values():
                     builder.add(query)
             for rname, builder in resource_builders.items():
                 self._resources[rname] = builder.get_resource()

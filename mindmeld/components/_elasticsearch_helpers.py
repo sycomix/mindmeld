@@ -343,7 +343,7 @@ DEFAULT_ES_RANKING_CONFIG = {"query_clauses_operator": "or"}
 
 
 def get_scoped_index_name(app_namespace, index_name):
-    return "{}${}".format(app_namespace, index_name)
+    return f"{app_namespace}${index_name}"
 
 
 def create_es_client(es_host=None, es_user=None, es_pass=None):
@@ -360,8 +360,7 @@ def create_es_client(es_host=None, es_user=None, es_pass=None):
 
     try:
         http_auth = (es_user, es_pass) if es_user and es_pass else None
-        es_client = _getattr("elasticsearch", "Elasticsearch")(es_host, http_auth=http_auth)
-        return es_client
+        return _getattr("elasticsearch", "Elasticsearch")(es_host, http_auth=http_auth)
     except _getattr("elasticsearch", "ElasticsearchException") as e:
         raise KnowledgeBaseError from e
     except _getattr("elasticsearch", "ImproperlyConfigured") as e:
@@ -375,9 +374,7 @@ def is_es_version_7(es_client):
             "Major version of ElasticSearch %d is not officially supported.",
             major_version,
         )
-    if major_version >= 7:
-        return True
-    return False
+    return major_version >= 7
 
 
 def resolve_es_config_for_version(config, es_client):
@@ -432,9 +429,7 @@ def get_field_names(
         if not does_index_exist(
             app_namespace, index_name, es_host, es_client, connect_timeout
         ):
-            raise ValueError(
-                "Elasticsearch index '{}' does not exist.".format(index_name)
-            )
+            raise ValueError(f"Elasticsearch index '{index_name}' does not exist.")
 
         res = es_client.indices.get(index=scoped_index_name)
 
@@ -507,9 +502,7 @@ def create_index(
             e.info,
         )
         raise KnowledgeBaseError(
-            "Unexpected error occurred when sending requests to "
-            "Elasticsearch: {} Status code: {} details: "
-            "{}".format(e.error, e.status_code, e.info)
+            f"Unexpected error occurred when sending requests to Elasticsearch: {e.error} Status code: {e.status_code} details: {e.info}"
         ) from e
     except _getattr("elasticsearch", "ElasticsearchException") as e:
         raise KnowledgeBaseError from e
@@ -532,17 +525,14 @@ def delete_index(
     scoped_index_name = get_scoped_index_name(app_namespace, index_name)
 
     try:
-        if does_index_exist(
+        if not does_index_exist(
             app_namespace, index_name, es_host, es_client, connect_timeout
         ):
-            logger.info("Deleting index %r", index_name)
-            es_client.indices.delete(scoped_index_name)
-        else:
             raise ValueError(
-                "Elasticsearch index '{}' for application '{}' does not exist.".format(
-                    index_name, app_namespace
-                )
+                f"Elasticsearch index '{index_name}' for application '{app_namespace}' does not exist."
             )
+        logger.info("Deleting index %r", index_name)
+        es_client.indices.delete(scoped_index_name)
     except _getattr("elasticsearch", "ConnectionError") as e:
         logger.debug(
             "Unable to connect to Elasticsearch: %s details: %s", e.error, e.info
@@ -647,9 +637,7 @@ def load_index(
 
         count = 0
         # create the progess bar with docs count
-        pbar = tqdm(
-            total=docs_count, desc="Loading Elasticsearch index {}".format(index_name)
-        )
+        pbar = tqdm(total=docs_count, desc=f"Loading Elasticsearch index {index_name}")
 
         es_version_7 = is_es_version_7(es_client)
         for okay, result in version_compatible_streaming_bulk(
@@ -657,9 +645,9 @@ def load_index(
         ):
             action, result = result.popitem()
             if es_version_7:
-                doc_id = "/%s/%s" % (index_name, result["_id"])
+                doc_id = f'/{index_name}/{result["_id"]}'
             else:
-                doc_id = "/%s/%s/%s" % (index_name, doc_type, result["_id"])
+                doc_id = f'/{index_name}/{doc_type}/{result["_id"]}'
 
             # process the information from ES whether the document has been
             # successfully indexed

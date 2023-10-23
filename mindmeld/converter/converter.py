@@ -73,5 +73,5 @@ class Converter(ABC):
         MINDMELD_MODEL_MAIN_FILE_NAME = "/template_main.txt"
         with open(main_file_loc + MINDMELD_MODEL_MAIN_FILE_NAME, "r") as f:
             string = f.read()
-        with open(mindmeld_project_directory + "/__main__.py", "w") as f:
+        with open(f"{mindmeld_project_directory}/__main__.py", "w") as f:
             f.write(string)

@@ -15,6 +15,7 @@
 Default params used by various sequence and token classification classes
 """
 
+
 import enum
 import logging
 import os
@@ -26,8 +27,6 @@ try:
     is_cuda_available = _get_module_or_attr("torch.cuda", "is_available")()
 except ImportError:
     is_cuda_available = False
-    pass
-
 logger = logging.getLogger(__name__)
 
 

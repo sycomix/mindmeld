@@ -67,7 +67,7 @@ def test_repeated_flow(async_kwik_e_mart_app, kwik_e_mart_app_path):
     )
     convo.process("When does that open?")
     assert_target_dialogue_state(convo, "send_store_hours_flow")
-    for i in range(2):
+    for _ in range(2):
         directives = convo.process("When does that open?").directives
         assert_reply(directives, "Which store would you like to know about?")
         assert_target_dialogue_state(convo, "send_store_hours_flow")
@@ -90,10 +90,7 @@ def test_intent_handler_and_exit_flow(async_kwik_e_mart_app, kwik_e_mart_app_pat
 
 
 def assert_dialogue_state(dm, dialogue_state):
-    for rule in dm.rules:
-        if rule.dialogue_state == dialogue_state:
-            return True
-    return False
+    return any(rule.dialogue_state == dialogue_state for rule in dm.rules)
 
 
 def test_dialogue_flow_async(async_kwik_e_mart_app):

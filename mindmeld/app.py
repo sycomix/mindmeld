@@ -203,7 +203,7 @@ class Application:  # pylint: disable=R0902
 
         actions = [action] if action else actions
         action_seq = CustomActionSequence(actions, config, merge=merge)
-        state_name = kwargs.pop("name", "custom_actions_{}".format(actions))
+        state_name = kwargs.pop("name", f"custom_actions_{actions}")
         async_mode = async_mode or self.async_mode
         if async_mode:
             self.add_dialogue_rule(state_name, action_seq.invoke_async, **kwargs)

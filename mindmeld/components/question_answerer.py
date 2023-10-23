@@ -154,15 +154,14 @@ class QuestionAnswererFactory:
             if model_type in QUESTION_ANSWERER_MODEL_MAPPINGS:
                 raise ValueError(
                     "Could not find `query_type` in `model_settings` of question answerer")
-            else:
-                msg = "Using deprecated config format for Question Answerer. " \
+            msg = "Using deprecated config format for Question Answerer. " \
                       "See https://www.mindmeld.com/docs/userguide/kb.html for more details."
-                warnings.warn(msg, DeprecationWarning)
-                config = copy.deepcopy(config)
-                model_settings = config.get("model_settings", {})
-                model_settings.update({"query_type": model_type})
-                config["model_settings"] = model_settings
-                config["model_type"] = "elasticsearch"
+            warnings.warn(msg, DeprecationWarning)
+            config = copy.deepcopy(config)
+            model_settings = config.get("model_settings", {})
+            model_settings.update({"query_type": model_type})
+            config["model_settings"] = model_settings
+            config["model_type"] = "elasticsearch"
         return config
 
     @staticmethod
@@ -222,10 +221,7 @@ class BaseQuestionAnswerer(ABC):
     @property
     def query_type(self) -> str:
         _query_type = self._qa_config.get("model_settings", {}).get("query_type")
-        if _query_type in ALL_QUERY_TYPES:
-            return _query_type
-        else:
-            return DEFAULT_QUERY_TYPE
+        return _query_type if _query_type in ALL_QUERY_TYPES else DEFAULT_QUERY_TYPE
 
     @property
     def model_settings(self) -> dict:
@@ -233,20 +229,20 @@ class BaseQuestionAnswerer(ABC):
 
         # add defaults
         if model_settings.get("embedder_type") == "bert":
-            default_pretrained_name_or_abspath = "sentence-transformers/bert-base-nli-mean-tokens"
             pretrained_name_or_abspath = model_settings.get("pretrained_name_or_abspath")
             if not pretrained_name_or_abspath:
+                default_pretrained_name_or_abspath = "sentence-transformers/bert-base-nli-mean-tokens"
                 msg = f"Using a default value ('{default_pretrained_name_or_abspath}') " \
-                      f"for the parameter 'pretrained_name_or_abspath' as NoneType value inputted."
+                          f"for the parameter 'pretrained_name_or_abspath' as NoneType value inputted."
                 logger.warning(msg)
                 pretrained_name_or_abspath = default_pretrained_name_or_abspath
             model_settings["pretrained_name_or_abspath"] = pretrained_name_or_abspath
         elif model_settings.get("embedder_type") == "glove":
-            default_token_embedding_dimension = 300
             token_embedding_dimension = model_settings.get("token_embedding_dimension")
             if not token_embedding_dimension:
+                default_token_embedding_dimension = 300
                 msg = f"Using a default value ('{default_token_embedding_dimension}') " \
-                      f"for the parameter 'token_embedding_dimension' as NoneType value inputted."
+                          f"for the parameter 'token_embedding_dimension' as NoneType value inputted."
                 logger.warning(msg)
                 token_embedding_dimension = default_token_embedding_dimension
             model_settings["token_embedding_dimension"] = token_embedding_dimension
@@ -334,13 +330,12 @@ class BaseQuestionAnswerer(ABC):
     def _resolve_deprecated_index_name(index_name, index):
         if index:
             msg = "Input the index name to a question answerer method by using the argument name " \
-                  "'index_name' instead of 'index'."
+                      "'index_name' instead of 'index'."
             warnings.warn(msg, DeprecationWarning)
-        index_name = index_name or index
-        if not index_name:
-            msg = "Missing one required argument: 'index_name'"
-            raise TypeError(msg)
-        return index_name
+        if index_name := index_name or index:
+            return index_name
+        else:
+            raise TypeError("Missing one required argument: 'index_name'")
 
     @abstractmethod
     def _get(self, *args, **kwargs):
@@ -445,7 +440,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 NativeQuestionAnswerer.ALL_INDICES.delete_index(scoped_index_name)
             else:
                 msg = f"Index '{index_name}' does not exist for app '{app_namespace}', " \
-                      f"creating a new index."
+                          f"creating a new index."
                 logger.warning(msg)
 
         # determine embedding fields
@@ -455,9 +450,9 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
         if embedding_fields:
             if "embedder" not in query_type:
                 msg = f"Found KB fields to upload embedding (fields: {embedding_fields}) for " \
-                      f"index '{index_name}' but query_type configured for this QA " \
-                      f"({query_type}) has no 'embedder' phrase in it leading to not setting up " \
-                      f"an embedder model. Ignoring provided 'embedding_fields'."
+                          f"index '{index_name}' but query_type configured for this QA " \
+                          f"({query_type}) has no 'embedder' phrase in it leading to not setting up " \
+                          f"an embedder model. Ignoring provided 'embedding_fields'."
                 logger.error(msg)
                 embedding_fields = []
         else:
@@ -474,17 +469,14 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 # fix related to Issue 220: https://github.com/cisco/mindmeld/issues/220
                 if line.strip().startswith("["):
                     logging.debug("Loading data from a json file.")
-                    docs = json.load(data_fp)
-                    for doc in docs:
-                        yield doc
+                    yield from json.load(data_fp)
                 else:
                     logging.debug("Loading data from a jsonl file.")
                     for line in data_fp:
-                        doc = json.loads(line)
-                        yield doc
+                        yield json.loads(line)
 
         def match_regex(string, pattern_list):
-            return any([re.match(pattern, string) for pattern in pattern_list])
+            return any(re.match(pattern, string) for pattern in pattern_list)
 
         all_id2value = {}  # a mapping from id to value(s) for each kb field
         all_ids = {}  # maintained to keep a record of order-preserved-doc-ids of the knowledge base
@@ -499,10 +491,10 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             if not _id:
                 _id = uuid.uuid4()
                 msg = f"Found an entry in {data_file} without a corresponding id. " \
-                      f"Assigning a randomly generated new id ({_id}) for this KB object."
+                          f"Assigning a randomly generated new id ({_id}) for this KB object."
                 logger.warning(msg)
             _id = str(_id)
-            all_ids.update({_id: None})
+            all_ids[_id] = None
             # update data
             for key, value in doc.items():
                 if key not in all_id2value:
@@ -563,9 +555,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 s = s.filter(query_type=query_type, id=doc_id)
                 # TODO: should consider s.query() to do fuzzy match like in Elasticsearch?
                 # s = s.query(query_type=query_type, id=doc_id)
-            results = s.execute(size=size)
-            return results
-
+            return s.execute(size=size)
         field = kwargs.pop("_sort", None)
         sort_type = kwargs.pop("_sort_type", None)
         location = kwargs.pop("_sort_location", None)
@@ -575,8 +565,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
         if field and (sort_type or location):
             s.sort(field, sort_type=sort_type, location=location)
 
-        results = s.execute(size=size)
-        return results
+        return s.execute(size=size)
 
     def _build_search(self, index, ranking_config=None, app_namespace=None):
         """Build a search object for advanced filtered search.
@@ -759,12 +748,12 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                         field_resource.load_resolvers(
                             resource_loader=NativeQuestionAnswerer.RESOURCE_LOADER
                         )
-                        index_resources.update({field_name: field_resource})
+                        index_resources[field_name] = field_resource
                     self._indices.update({index_name: index_resources})
                     self._indices_all_ids.update({index_name: index_all_ids})
             else:
                 msg = f"Consider creating indices first before using them. Specified scoped " \
-                      f"index name {index_name} not found in list of known indices."
+                              f"index name {index_name} not found in list of known indices."
                 raise KnowledgeBaseError(msg)
 
             return self._indices[index_name]
@@ -843,8 +832,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             # check if value can be resolved as-is
             for fmt in NativeQuestionAnswerer.FieldResourceDataHelper.date_formats:
                 try:
-                    value_date = datetime.strptime(value, fmt)
-                    return value_date
+                    return datetime.strptime(value, fmt)
                 except (ValueError, TypeError):
                     pass
 
@@ -853,8 +841,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 for val in [value.replace("/", " "), value.replace("-", " ")]:
                     if val != value:
                         try:
-                            value_date = datetime.strptime(val, fmt)
-                            return value_date
+                            return datetime.strptime(val, fmt)
                         except (ValueError, TypeError):
                             pass
 
@@ -894,21 +881,21 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
 
         @staticmethod
         def is_list_of_strings(value):
-            return (isinstance(value, (list, set))
-                    and len(value) > 0
-                    and all([isinstance(val, str) for val in value]))
+            return (
+                isinstance(value, (list, set))
+                and len(value) > 0
+                and all(isinstance(val, str) for val in value)
+            )
 
         @staticmethod
         def is_date(value):
-            if NativeQuestionAnswerer.FieldResourceDataHelper._get_date(value):
-                return True
-            return False
+            return bool(NativeQuestionAnswerer.FieldResourceDataHelper._get_date(value))
 
         @staticmethod
         def is_location(value):
-            if NativeQuestionAnswerer.FieldResourceDataHelper._get_location(value):
-                return True
-            return False
+            return bool(
+                NativeQuestionAnswerer.FieldResourceDataHelper._get_location(value)
+            )
 
         @staticmethod
         def number_scorer(some_number):
@@ -955,9 +942,9 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             """
 
             some_location = \
-                NativeQuestionAnswerer.FieldResourceDataHelper._get_location(some_location)
+                        NativeQuestionAnswerer.FieldResourceDataHelper._get_location(some_location)
             source_location = \
-                NativeQuestionAnswerer.FieldResourceDataHelper._get_location(source_location)
+                        NativeQuestionAnswerer.FieldResourceDataHelper._get_location(source_location)
 
             R = 6373.0  # constant based on Haversine formula
             lat1, lon1 = [radians(float(ii.strip())) for ii in some_location.split(",")]
@@ -966,9 +953,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
 
             a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
             c = 2 * atan2(sqrt(a), sqrt(1 - a))
-            distance_haversine_formula = R * c
-
-            return distance_haversine_formula
+            return R * c
 
         @staticmethod
         def min_max_normalizer(list_of_numbers):
@@ -1046,19 +1031,17 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 pass
 
             if self.is_location(value):
-                observed_data_type = "location"
+                return "location"
             elif self.is_bool(value):
-                observed_data_type = "bool"
+                return "bool"
             elif self.is_number(value):
-                observed_data_type = "number"
+                return "number"
             elif self.is_string(value) or self.is_list_of_strings(value):
-                observed_data_type = "string"
+                return "string"
             elif self.is_date(value):
-                observed_data_type = "date"
+                return "date"
             else:
-                observed_data_type = "unknown"
-
-            return observed_data_type
+                return "unknown"
 
         def _validate_and_reformat_value(
             self, known_data_type, value, _id=None, field_name=None, index_name=None
@@ -1101,9 +1084,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             """
 
             def _get_resolvers_whitelist(value):
-                if isinstance(value, (set, list)):
-                    return list(value)[1:]
-                return []
+                return list(value)[1:] if isinstance(value, (set, list)) else []
 
             # new: https://github.com/cisco/mindmeld/issues/291
             #   making 'value' into a list for cname and whitelist conversion.
@@ -1121,9 +1102,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
 
         @staticmethod
         def get_resolvers_cname(value):
-            if isinstance(value, (set, list)):
-                return list(value)[0]
-            return value
+            return list(value)[0] if isinstance(value, (set, list)) else value
 
     class FieldResource(FieldResourceHelper):
         """
@@ -1506,45 +1485,53 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             this_field_scores = {}
             n_scores = 0
 
-            if ("text" in query_type or "keyword" in query_type) and self._text_resolver:
-                # get processor type, process the value and then obtain similarities
-                processor_type = "text" if "text" in query_type else "keyword"
-                if processor_type != self.processor_type:
-                    msg = f"Using different text processing during loading KB " \
-                          f"({self.processor_type}) vs during inference ({processor_type}) " \
-                          f"for the field {self.field_name} in index {self.index_name}"
+            if ("text" in query_type or "keyword" in query_type):
+                if self._text_resolver:
+                    # get processor type, process the value and then obtain similarities
+                    processor_type = "text" if "text" in query_type else "keyword"
+                    if processor_type != self.processor_type:
+                        msg = f"Using different text processing during loading KB " \
+                                      f"({self.processor_type}) vs during inference ({processor_type}) " \
+                                      f"for the field {self.field_name} in index {self.index_name}"
+                        logger.warning(msg)
+                    new_value = self._auto_string_processor(value, processor_type)
+                    filtered_cnames = (
+                        [
+                            self.get_resolvers_cname(
+                                self._auto_string_processor(val, processor_type)
+                            )
+                            for _id, val in self.id2value.items()
+                            if _id in allowed_ids
+                        ]
+                        if allowed_ids
+                        else None
+                    )
+                    this_field_scores, n_scores = update_scores(
+                        self._text_resolver, new_value, this_field_scores, n_scores, filtered_cnames
+                    )
+                else:
+                    msg = f"No text based resolver configured for field {self.field_name} " \
+                                  f"in index {self.index_name}."
                     logger.warning(msg)
-                new_value = self._auto_string_processor(value, processor_type)
-                if allowed_ids:
-                    filtered_cnames = [
-                        self.get_resolvers_cname(self._auto_string_processor(val, processor_type))
-                        for _id, val in self.id2value.items() if _id in allowed_ids
-                    ]
-                else:
-                    filtered_cnames = None
-                this_field_scores, n_scores = update_scores(
-                    self._text_resolver, new_value, this_field_scores, n_scores, filtered_cnames
-                )
-            elif "text" in query_type or "keyword" in query_type:
-                msg = f"No text based resolver configured for field {self.field_name} " \
-                      f"in index {self.index_name}."
-                logger.warning(msg)
 
-            if "embedder" in query_type and self._embedding_resolver:
-                if allowed_ids:
-                    filtered_cnames = [
-                        self.get_resolvers_cname(val)
-                        for _id, val in self.id2value.items() if _id in allowed_ids
-                    ]
+            if "embedder" in query_type:
+                if self._embedding_resolver:
+                    filtered_cnames = (
+                        [
+                            self.get_resolvers_cname(val)
+                            for _id, val in self.id2value.items()
+                            if _id in allowed_ids
+                        ]
+                        if allowed_ids
+                        else None
+                    )
+                    this_field_scores, n_scores = update_scores(
+                        self._embedding_resolver, value, this_field_scores, n_scores, filtered_cnames
+                    )
                 else:
-                    filtered_cnames = None
-                this_field_scores, n_scores = update_scores(
-                    self._embedding_resolver, value, this_field_scores, n_scores, filtered_cnames
-                )
-            elif "embedder" in query_type:
-                msg = f"No embedder based resolver configured for field {self.field_name} " \
-                      f"in index {self.index_name}."
-                logger.warning(msg)
+                    msg = f"No embedder based resolver configured for field {self.field_name} " \
+                                  f"in index {self.index_name}."
+                    logger.warning(msg)
 
             # Case where-in no resolver exists (eg. "unknown" data type)
             if not this_field_scores:
@@ -1571,11 +1558,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                     return False
                 if lt and not (value < lt):
                     return False
-                if lte and not (value <= lte):
-                    return False
-                if et and not (value != et):
-                    return False
-                return True
+                return False if lte and not (value <= lte) else not et or value != et
 
             if self.data_type in ["number"]:
 
@@ -1603,9 +1586,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 def is_valid(value):
                     if value in filter_text_aliases:
                         return True
-                    if value.lower() in filter_text_aliases:
-                        return True
-                    return False
+                    return value.lower() in filter_text_aliases
 
             allowed_ids = {_id: None for _id in allowed_ids if
                            _id in self.id2value and is_valid(self.id2value[_id])}
@@ -1712,14 +1693,10 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             SORT_TYPES = {SORT_ORDER_ASC, SORT_ORDER_DESC, SORT_DISTANCE}
 
             if sort_type not in SORT_TYPES:
-                raise ValueError(
-                    "Invalid value for sort type '{}'".format(sort_type)
-                )
+                raise ValueError(f"Invalid value for sort type '{sort_type}'")
 
             if self.data_type == "location" and sort_type != SORT_DISTANCE:
-                raise ValueError(
-                    "Invalid value for sort type '{}'".format(sort_type)
-                )
+                raise ValueError(f"Invalid value for sort type '{sort_type}'")
 
             if self.data_type == "location" and not location:
                 raise ValueError(
@@ -1812,7 +1789,7 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
             Returns:
                 Bunch: various meta information of this field resource
             """
-            cache_object = Bunch(
+            return Bunch(
                 index_name=self.index_name,
                 field_name=self.field_name,
                 data_type=self.data_type,
@@ -1820,9 +1797,8 @@ class NativeQuestionAnswerer(BaseQuestionAnswerer):
                 hash=self.hash,
                 processor_type=self.processor_type,
                 has_text_resolver=self.has_text_resolver,
-                has_embedding_resolver=self.has_embedding_resolver
+                has_embedding_resolver=self.has_embedding_resolver,
             )
-            return cache_object
 
     class Search:
         """ Search class enabling functionality to query, filter and sort.
@@ -2132,7 +2108,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                 delete_index(app_namespace, index_name, es_host, es_client)
             except ValueError:
                 msg = f"Index {index_name} does not exist for app {app_namespace}, " \
-                      f"creating a new index"
+                          f"creating a new index"
                 logger.warning(msg)
 
         # determine embedding fields
@@ -2142,9 +2118,9 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
         if embedding_fields:
             if "embedder" not in query_type:
                 msg = f"Found KB fields to upload embedding (fields: {embedding_fields}) for " \
-                      f"index '{index_name}' but query_type configured for this QA " \
-                      f"({query_type}) has no 'embedder' phrase in it leading to not setting up " \
-                      f"an embedder model. Ignoring provided 'embedding_fields'."
+                          f"index '{index_name}' but query_type configured for this QA " \
+                          f"({query_type}) has no 'embedder' phrase in it leading to not setting up " \
+                          f"an embedder model. Ignoring provided 'embedding_fields'."
                 logger.error(msg)
                 embedding_fields = []
         else:
@@ -2170,7 +2146,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
 
         def _doc_generator(data_file, embedder_model=None, embedding_fields=None):
             def match_regex(string, pattern_list):
-                return any([re.match(pattern, string) for pattern in pattern_list])
+                return any(re.match(pattern, string) for pattern in pattern_list)
 
             def transform(doc, embedder_model, embedding_fields):
                 if embedder_model and embedding_fields:
@@ -2309,9 +2285,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
             )
             s = self.build_search(index, app_namespace=app_namespace)
             s = s.filter(query_type=query_type, id=doc_id)
-            results = s.execute(size=size)
-            return results
-
+            return s.execute(size=size)
         sort_clause = {}
         query_clauses = []
 
@@ -2354,8 +2328,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                 location=sort_clause.get("location"),
             )
 
-        results = s.execute(size=size)
-        return results
+        return s.execute(size=size)
 
     def _build_search(self, index, ranking_config=None, app_namespace=None):
         """Build a search object for advanced filtered search.
@@ -2373,7 +2346,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
         app_namespace = app_namespace or self.app_namespace
 
         if not does_index_exist(app_namespace=app_namespace, index_name=index):
-            raise ValueError("Knowledge base index '{}' does not exist.".format(index))
+            raise ValueError(f"Knowledge base index '{index}' does not exist.")
 
         # get index name with app scope
         index = get_scoped_index_name(app_namespace, index)
@@ -2434,7 +2407,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
             field, value = next(iter(kwargs.items()))
             field_info = self._kb_field_info.get(field)
             if not field_info:
-                raise ValueError("Invalid knowledge base field '{}'".format(field))
+                raise ValueError(f"Invalid knowledge base field '{field}'")
 
             # check whether the synonym field is available. By default the synonyms are
             # imported to "<field_name>$whitelist" field.
@@ -2463,7 +2436,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                 lte = kwargs.get("lte")
 
                 if field not in self._kb_field_info:
-                    raise ValueError("Invalid knowledge base field '{}'".format(field))
+                    raise ValueError(f"Invalid knowledge base field '{field}'")
 
                 clause = ElasticsearchQuestionAnswerer.Search.FilterClause(
                     field=field,
@@ -2476,7 +2449,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
             else:
                 key, value = next(iter(kwargs.items()))
                 if key not in self._kb_field_info:
-                    raise ValueError("Invalid knowledge base field '{}'".format(key))
+                    raise ValueError(f"Invalid knowledge base field '{key}'")
                 clause = ElasticsearchQuestionAnswerer.Search.FilterClause(
                     field=key, value=value, query_type=query_type)
             clause.validate()
@@ -2489,7 +2462,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
 
             field_info = self._kb_field_info.get(sort_field)
             if not field_info:
-                raise ValueError("Invalid knowledge base field '{}'".format(sort_field))
+                raise ValueError(f"Invalid knowledge base field '{sort_field}'")
 
             # only compute field stats if sort field is number or date type.
             field_stats = None
@@ -2618,16 +2591,16 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
             """
 
             stats_query = {"aggs": {}, "size": 0}
-            stats_query["aggs"][field + "_min"] = {"min": {"field": field}}
-            stats_query["aggs"][field + "_max"] = {"max": {"field": field}}
+            stats_query["aggs"][f"{field}_min"] = {"min": {"field": field}}
+            stats_query["aggs"][f"{field}_max"] = {"max": {"field": field}}
 
             res = self.client.search(
                 index=self.index, body=stats_query, search_type="query_then_fetch"
             )
 
             return {
-                "min_value": res["aggregations"][field + "_min"]["value"],
-                "max_value": res["aggregations"][field + "_max"]["value"],
+                "min_value": res["aggregations"][f"{field}_min"]["value"],
+                "max_value": res["aggregations"][f"{field}_max"]["value"],
             }
 
         def _build_es_query(self, size=10):
@@ -2648,7 +2621,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                         "boost_mode": "sum",
                     }
                 },
-                "_source": {"excludes": ["*" + self.SYN_FIELD_SUFFIX]},
+                "_source": {"excludes": [f"*{self.SYN_FIELD_SUFFIX}"]},
                 "size": size,
             }
 
@@ -2658,39 +2631,39 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
             else:
                 es_query["query"]["function_score"]["query"]["bool"] = {}
 
-                if self._clauses["query"]:
-                    es_query_clauses = []
-                    es_boost_functions = []
-                    for clause in self._clauses["query"]:
-                        query_clause, boost_functions = clause.build_query()
-                        if query_clause:
-                            es_query_clauses.append(query_clause)
-                        es_boost_functions.extend(boost_functions)
+            if self._clauses["query"]:
+                es_query_clauses = []
+                es_boost_functions = []
+                for clause in self._clauses["query"]:
+                    query_clause, boost_functions = clause.build_query()
+                    if query_clause:
+                        es_query_clauses.append(query_clause)
+                    es_boost_functions.extend(boost_functions)
 
-                    if self._ranking_config["query_clauses_operator"] == "and":
-                        es_query["query"]["function_score"]["query"]["bool"][
-                            "must"
-                        ] = es_query_clauses
-                    else:
-                        es_query["query"]["function_score"]["query"]["bool"][
-                            "should"
-                        ] = es_query_clauses
-
-                    # add all boost functions for the query clause
-                    # right now the only boost functions supported are exact match boosting for
-                    # CNAME and synonym whitelists.
-                    es_query["query"]["function_score"]["functions"].extend(
-                        es_boost_functions
-                    )
-
-                if self._clauses["filter"]:
-                    es_filter_clauses = {"bool": {"must": []}}
-                    for clause in self._clauses["filter"]:
-                        es_filter_clauses["bool"]["must"].append(clause.build_query())
-
+                if self._ranking_config["query_clauses_operator"] == "and":
                     es_query["query"]["function_score"]["query"]["bool"][
-                        "filter"
-                    ] = es_filter_clauses
+                        "must"
+                    ] = es_query_clauses
+                else:
+                    es_query["query"]["function_score"]["query"]["bool"][
+                        "should"
+                    ] = es_query_clauses
+
+                # add all boost functions for the query clause
+                # right now the only boost functions supported are exact match boosting for
+                # CNAME and synonym whitelists.
+                es_query["query"]["function_score"]["functions"].extend(
+                    es_boost_functions
+                )
+
+            if self._clauses["filter"]:
+                es_filter_clauses = {"bool": {"must": []}}
+                for clause in self._clauses["filter"]:
+                    es_filter_clauses["bool"]["must"].append(clause.build_query())
+
+                es_query["query"]["function_score"]["query"]["bool"][
+                    "filter"
+                ] = es_filter_clauses
 
             # add scoring function for custom sort criteria
             for clause in self._clauses["sort"]:
@@ -2843,7 +2816,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                                 },
                                 {
                                     "match": {
-                                        self.field + ".char_ngram": {"query": self.value}
+                                        f"{self.field}.char_ngram": {"query": self.value}
                                     }
                                 },
                             ]
@@ -2857,7 +2830,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                     functions = [
                         {
                             "filter": {
-                                "match": {self.field + ".normalized_keyword": self.value}
+                                "match": {f"{self.field}.normalized_keyword": self.value}
                             },
                             "weight": self.DEFAULT_EXACT_MATCH_BOOSTING_WEIGHT,
                         }
@@ -2960,11 +2933,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                 self.range_lt = range_lt
                 self.range_lte = range_lte
 
-                if self.value:
-                    self.filter_type = "text"
-                else:
-                    self.filter_type = "range"
-
+                self.filter_type = "text" if self.value else "range"
                 self.clause_type = "filter"
 
             def build_query(self):
@@ -2974,17 +2943,17 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                     if self.field == "id":
                         clause = {"term": {"id": self.value}}
                     else:
-                        if self.query_type == "text":
-                            clause = {
-                                "match": {self.field + ".char_ngram": {"query": self.value}}
-                            }
-                        else:
-                            clause = {
+                        clause = (
+                            {"match": {f"{self.field}.char_ngram": {"query": self.value}}}
+                            if self.query_type == "text"
+                            else {
                                 "match": {
-                                    self.field
-                                    + ".normalized_keyword": {"query": self.value}
+                                    f"{self.field}.normalized_keyword": {
+                                        "query": self.value
+                                    }
                                 }
                             }
+                        )
                 elif self.filter_type == "range":
                     lower_bound = None
                     upper_bound = None
@@ -3082,7 +3051,7 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
 
                         # add time unit for date field
                         scale = (
-                            "{}ms".format(int(0.5 * (max_value - min_value)))
+                            f"{int(0.5 * (max_value - min_value))}ms"
                             if max_value != min_value
                             else 1
                         )
@@ -3091,29 +3060,19 @@ class ElasticsearchQuestionAnswerer(BaseQuestionAnswerer):
                             0.5 * (max_value - min_value) if max_value != min_value else 1
                         )
 
-                    if self.sort_type == "asc":
-                        origin = min_value
-                    else:
-                        origin = max_value
-
-                sort_clause = {
+                    origin = min_value if self.sort_type == "asc" else max_value
+                return {
                     "linear": {self.field: {"origin": origin, "scale": scale}},
                     "weight": self.DEFAULT_SORT_WEIGHT,
                 }
 
-                return sort_clause
-
             def validate(self):
                 # validate the sort type to be valid.
                 if self.sort_type not in self.SORT_TYPES:
-                    raise ValueError(
-                        "Invalid value for sort type '{}'".format(self.sort_type)
-                    )
+                    raise ValueError(f"Invalid value for sort type '{self.sort_type}'")
 
                 if self.field == "location" and self.sort_type != self.SORT_DISTANCE:
-                    raise ValueError(
-                        "Invalid value for sort type '{}'".format(self.sort_type)
-                    )
+                    raise ValueError(f"Invalid value for sort type '{self.sort_type}'")
 
                 if self.field == "location" and not self.location:
                     raise ValueError(

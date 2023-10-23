@@ -95,11 +95,10 @@ class EntityLabelEncoder(LabelEncoder):
         """
         examples = kwargs["examples"]
         scheme = self._get_tag_scheme()
-        # Here each label is a list of entities for the corresponding example
-        all_tags = []
-        for idx, label in enumerate(labels):
-            all_tags.append(get_tags_from_entities(examples[idx], label, scheme))
-        return all_tags
+        return [
+            get_tags_from_entities(examples[idx], label, scheme)
+            for idx, label in enumerate(labels)
+        ]
 
     def decode(self, tags_by_example, **kwargs):
         """Decodes the labels from the tags passed in for each query
@@ -118,11 +117,12 @@ class EntityLabelEncoder(LabelEncoder):
             # entity recognizer
             self.system_entity_recognizer = SystemEntityRecognizer.get_instance()
         examples = kwargs["examples"]
-        labels = [
-            get_entities_from_tags(examples[idx], tags, self.system_entity_recognizer)
+        return [
+            get_entities_from_tags(
+                examples[idx], tags, self.system_entity_recognizer
+            )
             for idx, tags in enumerate(tags_by_example)
         ]
-        return labels
 
 
 register_label("class", LabelEncoder)

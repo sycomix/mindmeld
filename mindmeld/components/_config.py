@@ -547,10 +547,9 @@ def get_custom_action_config(app_path):
     if not app_path:
         return None
     try:
-        custom_action_config = getattr(
+        return getattr(
             _get_config_module(app_path), "CUSTOM_ACTION_CONFIG", None
         )
-        return custom_action_config
     except (OSError, IOError):
         logger.info("No app configuration file found.")
         return None
@@ -560,10 +559,7 @@ def get_max_history_len(app_path):
     if not app_path:
         return None
     try:
-        custom_action_config = getattr(
-            _get_config_module(app_path), "MAX_HISTORY_LEN", None
-        )
-        return custom_action_config
+        return getattr(_get_config_module(app_path), "MAX_HISTORY_LEN", None)
     except (OSError, IOError):
         logger.info("No app configuration file found.")
         return None
@@ -609,7 +605,7 @@ def get_app_namespace(app_path):
     try:
         _app_namespace = _get_config_module(app_path).APP_NAMESPACE
         if "JUPYTER_USER" in os.environ:
-            _app_namespace = "{}_{}".format(os.environ["JUPYTER_USER"], _app_namespace)
+            _app_namespace = f'{os.environ["JUPYTER_USER"]}_{_app_namespace}'
         return _app_namespace
     except (OSError, IOError):
         logger.debug("No app configuration file found")
@@ -949,10 +945,9 @@ def _expand_group_config(group_config):
 def _get_config_module(app_path):
     module_path = path.get_config_module_path(app_path)
 
-    config_module = imp.load_source(
-        "config_module_" + os.path.basename(app_path), module_path
+    return imp.load_source(
+        f"config_module_{os.path.basename(app_path)}", module_path
     )
-    return config_module
 
 
 def _get_default_nlp_config():
@@ -1007,12 +1002,11 @@ def get_augmentation_config(app_path=None):
         dict: The augmentation config.
     """
     try:
-        augmentation_config = getattr(
+        return getattr(
             _get_config_module(app_path),
             "AUGMENTATION_CONFIG",
             DEFAULT_AUGMENTATION_CONFIG,
         )
-        return augmentation_config
     except (OSError, IOError, AttributeError):
         logger.info(
             "No app configuration file found. Using the default augmentation config."
@@ -1031,12 +1025,11 @@ def get_auto_annotator_config(app_path=None):
         dict: The automatic annotator config.
     """
     try:
-        auto_annotator_config = getattr(
+        return getattr(
             _get_config_module(app_path),
             "AUTO_ANNOTATOR_CONFIG",
             DEFAULT_AUTO_ANNOTATOR_CONFIG,
         )
-        return auto_annotator_config
     except (OSError, IOError):
         logger.info(
             "No app configuration file found. Using the default automatic annotator config."
@@ -1057,12 +1050,11 @@ def get_active_learning_config(app_path=None):
     if not app_path:
         return DEFAULT_ACTIVE_LEARNING_CONFIG
     try:
-        active_learning_config = getattr(
+        return getattr(
             _get_config_module(app_path),
             "ACTIVE_LEARNING_CONFIG",
             DEFAULT_ACTIVE_LEARNING_CONFIG,
         )
-        return active_learning_config
     except (OSError, IOError, AttributeError):
         logger.info("No app configuration file found.")
         return DEFAULT_ACTIVE_LEARNING_CONFIG
@@ -1080,10 +1072,7 @@ def get_text_preparation_config(app_path=None):
     if not app_path:
         return DEFAULT_EN_TEXT_PREPARATION_CONFIG
     try:
-        tokenizer_config = getattr(
-            _get_config_module(app_path), "TEXT_PREPARATION_CONFIG"
-        )
-        return tokenizer_config
+        return getattr(_get_config_module(app_path), "TEXT_PREPARATION_CONFIG")
     except (OSError, IOError, AttributeError):
         logger.info("No app configuration file found. Using default text_preparation_config.")
         return {"normalizers": DEFAULT_NORMALIZERS}

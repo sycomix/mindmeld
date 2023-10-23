@@ -14,6 +14,7 @@
 """
 This module consists of encoders that serve as input to pytorch modules
 """
+
 import json
 import logging
 import os
@@ -42,8 +43,6 @@ try:
     NO_TOKENIZERS_MODULE = False
 except ImportError:
     NO_TOKENIZERS_MODULE = True
-    pass
-
 logger = logging.getLogger(__name__)
 
 
@@ -180,7 +179,7 @@ def _trim_a_list_of_sub_token_groups(
             number of all sub-words inputted, it is clipped to number of all sub-words.
         y: Labels accompanying each group in x
     """
-    max_len = min(max_len, sum([len(_x) for _x in x]))
+    max_len = min(max_len, sum(len(_x) for _x in x))
     curr_len = 0
     if y:
         new_x, new_y = [], []
@@ -189,10 +188,9 @@ def _trim_a_list_of_sub_token_groups(
         for _x, _y in zip(x, y):
             if curr_len + len(_x) > max_len:
                 return new_x, new_y
-            elif curr_len + len(_x) <= max_len:
-                new_x.append(_x)
-                new_y.append(_y)
-                curr_len += len(_x)
+            new_x.append(_x)
+            new_y.append(_y)
+            curr_len += len(_x)
         return new_x, new_y
     else:
         new_x = []
@@ -201,9 +199,8 @@ def _trim_a_list_of_sub_token_groups(
         for _x in x:
             if curr_len + len(_x) > max_len:
                 return new_x
-            elif curr_len + len(_x) <= max_len:
-                new_x.append(_x)
-                curr_len += len(_x)
+            new_x.append(_x)
+            curr_len += len(_x)
         return new_x
 
 
@@ -233,7 +230,7 @@ class AbstractVocabLookupEncoder(AbstractEncoder):
         self.token2id = {t: i for i, t in enumerate(all_tokens)}
 
         for name, token in self.__class__.SPECIAL_TOKENS_DICT.items():
-            self.token2id.update({token: len(self.token2id)})
+            self.token2id[token] = len(self.token2id)
             setattr(self, f"{name}", token)
             setattr(self, f"{name}_idx", self.token2id[token])
 
@@ -265,11 +262,10 @@ class AbstractVocabLookupEncoder(AbstractEncoder):
     def _get_filename(self, path: str):
         if not os.path.isdir(path):
             msg = f"The dump method of {self.__class__.__name__} only accepts diretory as the " \
-                  f"path argument."
+                      f"path argument."
             logger.error(msg)
             raise ValueError(msg)
-        filename = os.path.join(path, "vocab.txt")
-        return filename
+        return os.path.join(path, "vocab.txt")
 
     @abstractmethod
     def _tokenize(self, text: str) -> List[str]:
@@ -289,9 +285,11 @@ class AbstractVocabLookupEncoder(AbstractEncoder):
             [self._tokenize(word) for word in example.split(" ")] for example in examples
         ]
 
-        max_curr_len = max([len(sum(t_ex, [])) for t_ex in tokenized_examples]) + n_terminals
+        max_curr_len = (
+            max(len(sum(t_ex, [])) for t_ex in tokenized_examples) + n_terminals
+        )
         padding_length_including_terminals = min(max_curr_len, padding_length) \
-            if padding_length else max_curr_len
+                if padding_length else max_curr_len
         padding_length_excluding_terminals = padding_length_including_terminals - n_terminals
 
         _trimmed_examples = [
@@ -350,11 +348,10 @@ class AbstractVocabLookupEncoder(AbstractEncoder):
             list_of_tokens_with_terminals +
             [getattr(self, "pad_token")] * (padding_length - len(list_of_tokens_with_terminals))
         )
-        list_of_ids = [
+        return [
             self.token2id.get(token, getattr(self, "unk_token_idx"))
             for token in list_of_tokens_with_terminals_and_padding
         ]
-        return list_of_ids
 
     def get_vocab(self) -> Dict:
         return self.token2id
@@ -408,7 +405,7 @@ class WhitespaceAndCharDualEncoder(WhitespaceEncoder):
         self.char_token2id = {t: i for i, t in enumerate(all_tokens)}
 
         for name, token in self.__class__.SPECIAL_CHAR_TOKENS_DICT.items():
-            self.char_token2id.update({token: len(self.char_token2id)})
+            self.char_token2id[token] = len(self.char_token2id)
             setattr(self, f"{name}", token)
             setattr(self, f"{name}_idx", self.char_token2id[token])
 
@@ -444,11 +441,10 @@ class WhitespaceAndCharDualEncoder(WhitespaceEncoder):
     def _get_char_filename(self, path: str):
         if not os.path.isdir(path):
             msg = f"The dump method of {self.__class__.__name__} only accepts diretory as the " \
-                  f"path argument."
+                      f"path argument."
             logger.error(msg)
             raise ValueError(msg)
-        filename = os.path.join(path, "char_vocab.txt")
-        return filename
+        return os.path.join(path, "char_vocab.txt")
 
     @property
     def number_of_char_terminal_tokens(self) -> int:
@@ -473,7 +469,7 @@ class WhitespaceAndCharDualEncoder(WhitespaceEncoder):
 
         if add_terminals:
             msg = f"The param 'add_terminals' must be False to encode a batch using " \
-                  f"{self.__class__.__name__}."
+                      f"{self.__class__.__name__}."
             logger.error(msg)
             raise ValueError(msg)
 
@@ -486,9 +482,9 @@ class WhitespaceAndCharDualEncoder(WhitespaceEncoder):
         char_seq_ids, char_seq_lengths = [], []
         for _seq_tokens in _examples:
             # compute padding length for character sequences
-            _curr_max = max([len(word) for word in _seq_tokens])
+            _curr_max = max(len(word) for word in _seq_tokens)
             _curr_max = _curr_max + self.number_of_char_terminal_tokens \
-                if char_add_terminals else _curr_max
+                    if char_add_terminals else _curr_max
             char_padding_length = (
                 min(char_padding_length, _curr_max) if char_padding_length else _curr_max
             )
@@ -622,11 +618,10 @@ class AbstractHuggingfaceTrainableEncoder(AbstractEncoder):
     def _get_filename(self, path: str):
         if not os.path.isdir(path):
             msg = f"The dump method of {self.__class__.__name__} only accepts diretory as the " \
-                  f"path argument."
+                      f"path argument."
             logger.error(msg)
             raise ValueError(msg)
-        filename = os.path.join(path, "tokenizer.json")
-        return filename
+        return os.path.join(path, "tokenizer.json")
 
     def _tokenize(self, text: str) -> List[str]:
         """
@@ -808,7 +803,7 @@ class HuggingfacePretrainedEncoder(AbstractEncoder):
 
         if not add_terminals:
             msg = f"The param 'add_terminals' must be True to encode a batch using " \
-                  f"{self.__class__.__name__}."
+                      f"{self.__class__.__name__}."
             logger.error(msg)
             raise ValueError(msg)
 
@@ -823,9 +818,11 @@ class HuggingfacePretrainedEncoder(AbstractEncoder):
             [self._tokenize(word) for word in example.split(split_at)] for example in examples
         ]
 
-        max_curr_len = max([len(sum(t_ex, [])) for t_ex in tokenized_examples]) + n_terminals
+        max_curr_len = (
+            max(len(sum(t_ex, [])) for t_ex in tokenized_examples) + n_terminals
+        )
         padding_length_including_terminals = min(max_curr_len, padding_length) \
-            if padding_length else max_curr_len
+                if padding_length else max_curr_len
         if self._model_max_length:
             # padding_length cannot exceed the transformer model's maximum length
             padding_length_including_terminals = min(

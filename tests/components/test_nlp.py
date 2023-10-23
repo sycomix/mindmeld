@@ -71,11 +71,9 @@ def test_process(kwik_e_mart_nlp):
 
 def test_query_info_contains_language_information(kwik_e_mart_nlp):
     query_info = kwik_e_mart_nlp.resource_loader.file_to_query_info
-    file_to_test = None
-    for file in query_info.keys():
-        if "train.txt" in file:
-            file_to_test = file
-            break
+    file_to_test = next(
+        (file for file in query_info.keys() if "train.txt" in file), None
+    )
     row_id = query_info[file_to_test]["query_ids"][0]
     query = kwik_e_mart_nlp.resource_loader.query_cache.get(row_id).query
     assert query.language == "en"
@@ -703,10 +701,7 @@ def test_parallel_processing(kwik_e_mart_nlp):
         # test adding a new function to an instance
         def test_function(self, item):
             item = item.lower()
-            if os.getpid() == parent:
-                item = item + "-parent"
-            else:
-                item = item + "-child"
+            item = f"{item}-parent" if os.getpid() == parent else f"{item}-child"
             return item
 
         prev_executor = nlp_module.executor
@@ -729,11 +724,11 @@ def test_parallel_processing(kwik_e_mart_nlp):
         def slow_function(self, item):
             item = item.lower()
             if os.getpid() == parent:
-                item = item + "-parent"
+                item = f"{item}-parent"
             else:
                 # sleep enough to trigger a timeout in the child process
                 time.sleep(nlp_module.SUBPROCESS_WAIT_TIME + 0.1)
-                item = item + "-child"
+                item = f"{item}-child"
             return item
 
         nlp._test_function = slow_function.__get__(nlp)
@@ -772,11 +767,9 @@ def test_word_shape_feature(kwik_e_mart_nlp):
     ic = kwik_e_mart_nlp.domains["store_info"].intent_classifier
     features = ic.view_extracted_features("is the 104 first street store open")
 
-    word_shape_features = {}
-    for key in features:
-        if "word_shape" in key:
-            word_shape_features[key] = features[key]
-
+    word_shape_features = {
+        key: features[key] for key in features if "word_shape" in key
+    }
     shape_1_value = math.log(2, 2) / 7
     expected_features = {
         "bag_of_words|length:1|word_shape:xx": shape_1_value,
@@ -794,11 +787,9 @@ def test_sys_entity_feature(kwik_e_mart_nlp):
     ic = kwik_e_mart_nlp.domains["store_info"].intent_classifier
     features = ic.view_extracted_features("is the 104 1st street store open")
 
-    sys_candidate_features = {}
-    for key in features:
-        if "sys_candidate" in key:
-            sys_candidate_features[key] = features[key]
-
+    sys_candidate_features = {
+        key: features[key] for key in features if "sys_candidate" in key
+    }
     expected_features = {
         "sys_candidate|type:sys_number": 2,
         "sys_candidate|type:sys_number|granularity:None": 2,

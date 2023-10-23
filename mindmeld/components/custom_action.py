@@ -55,9 +55,7 @@ class CustomAction:
             (bool)
         """
         if not self.url:
-            raise CustomActionException(
-                "No URL is given for custom action {}.".format(self._name)
-            )
+            raise CustomActionException(f"No URL is given for custom action {self._name}.")
 
         json_data = self.get_json_payload(request, responder)
 
@@ -196,7 +194,7 @@ class CustomActionSequence:
         return str(self.actions)
 
     def __str__(self):
-        return "action_seq=" + str(self.actions)
+        return f"action_seq={str(self.actions)}"
 
 
 def invoke_custom_action(name, config, request, responder, merge=True):

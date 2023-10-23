@@ -145,10 +145,8 @@ def test_auto_fill_invoke(kwik_e_mart_app):
 
     # check whether new rule has been added for sub handler.
     assert any(
-        [
-            rule.dialogue_state == handler_sub.__name__
-            for rule in list(app.app_manager.dialogue_manager.rules)
-        ]
+        rule.dialogue_state == handler_sub.__name__
+        for rule in list(app.app_manager.dialogue_manager.rules)
     )
 
 

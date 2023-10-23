@@ -61,9 +61,8 @@ class TestSequenceClassification:
             ],
         }
         labeled_data = []
-        for intent in data_dict:
-            for text in data_dict[intent]:
-                labeled_data.append(markup.load_query(text, intent=intent))
+        for intent, value in data_dict.items():
+            labeled_data.extend(markup.load_query(text, intent=intent) for text in value)
         cls.labeled_data = ProcessedQueryList.from_in_memory_list(labeled_data)
 
     def test_default_embedder(self, resource_loader):

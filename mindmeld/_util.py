@@ -279,13 +279,11 @@ def load_configuration():
     file is located by searching first in the current directory, and in parent
     directories.
     """
-    config_file = _find_config_file()
-    if config_file:
+    if config_file := _find_config_file():
         logger.debug("Using config file at '%s'", config_file)
         # Do the thing
         iniconfig = py.iniconfig.IniConfig(config_file)  # pylint: disable=no-member
-        config = {}
-        config["app_name"] = iniconfig.get("mindmeld", "app_name")
+        config = {"app_name": iniconfig.get("mindmeld", "app_name")}
         config["app_path"] = iniconfig.get("mindmeld", "app_path")
         config["use_quarry"] = iniconfig.get("mindmeld", "use_quarry")
         config["input_method"] = iniconfig.get("mindmeld", "input_method")

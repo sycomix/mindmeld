@@ -83,16 +83,13 @@ class ClassifierConfig:
         Returns:
             (dict): A dict version of the config.
         """
-        result = {}
-        for attr in self.__slots__:
-            result[attr] = getattr(self, attr)
-        return result
+        return {attr: getattr(self, attr) for attr in self.__slots__}
 
     def __repr__(self):
         args_str = ", ".join(
             "{}={!r}".format(key, getattr(self, key)) for key in self.__slots__
         )
-        return "{}({})".format(self.__class__.__name__, args_str)
+        return f"{self.__class__.__name__}({args_str})"
 
     @classmethod
     def from_model_config(cls, model_config):
@@ -358,8 +355,7 @@ class Classifier(ABC):
             )
             return None
 
-        evaluation = self._model.evaluate(examples, labels)
-        return evaluation
+        return self._model.evaluate(examples, labels)
 
     def inspect(self, query, gold_label=None, dynamic_resource=None):
         raise NotImplementedError
@@ -437,7 +433,7 @@ class Classifier(ABC):
                 # backwards compatible to loading a NoneType model
                 self._model.dump(path)
 
-            hash_path = path + ".hash"
+            hash_path = f"{path}.hash"
             os.makedirs(os.path.dirname(hash_path), exist_ok=True)
             with open(hash_path, "w") as hash_file:
                 hash_file.write(self.hash)
@@ -451,7 +447,7 @@ class Classifier(ABC):
     @staticmethod
     def _get_classifier_resources_save_path(model_path):
         head, ext = os.path.splitext(model_path)
-        classifier_resources_save_path = head + ".classifier_resources" + ext
+        classifier_resources_save_path = f"{head}.classifier_resources{ext}"
         os.makedirs(os.path.dirname(classifier_resources_save_path), exist_ok=True)
         return classifier_resources_save_path
 
@@ -498,7 +494,7 @@ class Classifier(ABC):
 
     @staticmethod
     def _load_hash(model_path):
-        hash_path = model_path + ".hash"
+        hash_path = f"{model_path}.hash"
         if not os.path.isfile(hash_path):
             return ""
         with open(hash_path, "r") as hash_file:
@@ -556,10 +552,10 @@ class Classifier(ABC):
         # Hash config
         config_hash = self._resource_loader.hash_string(model_config.to_json())
 
-        # Hash resources
-        rsc_strings = []
-        for resource in sorted(model_config.required_resources()):
-            rsc_strings.append(self._resource_loader.hash_feature_resource(resource))
+        rsc_strings = [
+            self._resource_loader.hash_feature_resource(resource)
+            for resource in sorted(model_config.required_resources())
+        ]
         rsc_hash = self._resource_loader.hash_list(rsc_strings)
 
         return self._resource_loader.hash_list([queries_hash, config_hash, rsc_hash])

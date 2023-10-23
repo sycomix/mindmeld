@@ -148,15 +148,14 @@ class Parser:
         # generate sentential form (assumes entities are sorted)
         for entity in entities:
             entity_type = entity.entity.type
-            role_type = entity.entity.role
-            if role_type:
+            if role_type := entity.entity.role:
                 # Append role type to entity type with - separator
-                entity_with_role_type = entity_type + "--" + role_type
+                entity_with_role_type = f"{entity_type}--{role_type}"
                 if entity_with_role_type in self._configured_entities:
                     entity_type = entity_with_role_type
             if entity_type not in self._configured_entities:
                 entity_type = "unk"
-            entity_id = "{}{}".format(entity_type, entity_type_count[entity_type])
+            entity_id = f"{entity_type}{entity_type_count[entity_type]}"
             entity_type_count[entity_type] += 1
             entity_dict[entity_id] = entity
             tokens.append(entity_id)
@@ -176,10 +175,7 @@ class Parser:
                     raise ParserTimeout("Parsing took too long")
 
         if not parses:
-            if all_candidates:
-                return []
-            return entities
-
+            return [] if all_candidates else entities
         ranked_parses = self._rank_parses(
             query, entity_dict, parses, timeout, start_time
         )
@@ -198,7 +194,7 @@ class Parser:
             if timeout is not None and time.time() - start_time > timeout:
                 raise ParserTimeout("Parsing took too long")
             resolved[self._resolve_parse(parse)] = None
-        filtered = (p for p in resolved.keys())
+        filtered = iter(resolved.keys())
 
         # Prefer parses with fewer groups
         parses = list(sorted(filtered, key=len))
@@ -256,9 +252,7 @@ class Parser:
             entity = stack.pop()
             new_dict[(entity.entity.type, entity.span.start)] = entity
 
-            for child in entity.children or ():
-                stack.append(child)
-
+            stack.extend(iter(entity.children or ()))
         return [new_dict.get((e.entity.type, e.span.start), e) for e in entities]
 
     @classmethod
@@ -361,10 +355,7 @@ def _build_symbol_template(group, features):
     """
     symbol_template = group
     for feature in features:
-        if symbol_template is group:
-            symbol_template += "["
-        else:
-            symbol_template += ", "
+        symbol_template += "[" if symbol_template is group else ", "
         symbol_template += "{0}={{{0}}}".format(feature)
     if symbol_template is not group:
         symbol_template += "]"
@@ -429,31 +420,32 @@ def generate_grammar(config, entity_types=None, relaxed=False, unique_entities=2
     entity_types = set(entity_types or ())
     # start rules
     rules = [
-        "{} -> {}".format(START_SYMBOL, HEAD_SYMBOL),  # The start rule
+        f"{START_SYMBOL} -> {HEAD_SYMBOL}",
         "{0} -> {0} {0}".format(HEAD_SYMBOL),
-    ]  # Allow multiple heads
+    ]
 
     # the set of all heads
     head_types = set(config.keys())
 
     # the set of all dependents
-    dependent_types = set((t for g in config.values() for t in g))
+    dependent_types = {t for g in config.values() for t in g}
 
     all_types = head_types.union(dependent_types).union(entity_types)
 
     for entity in all_types:
-        if entity not in head_types and entity not in dependent_types:
+        if (
+            entity not in head_types
+            and entity not in dependent_types
+            or relaxed
+            and entity not in head_types
+        ):
             # Add entities which are not mentioned in config as standalones
-            rules.append("H -> {}".format(entity))
-        elif relaxed and entity not in head_types and entity in dependent_types:
-            # Add dependent entities as standalones in relaxed mode
-            rules.append("H -> {}".format(entity))
-
+            rules.append(f"H -> {entity}")
     # create rules for each group
     for entity in head_types:
         # the symbol for a group is the capitalized version of the string
         group = entity.capitalize()
-        rules.append("H -> {}".format(group))
+        rules.append(f"H -> {group}")
 
         dep_configs = config[entity]
         # If a dependent has a max number of instances, we will track it as a feature
@@ -477,7 +469,8 @@ def generate_grammar(config, entity_types=None, relaxed=False, unique_entities=2
                 )
             )
     for entity in all_types:
-        for idx in range(unique_entities):
-            rules.append("{0} -> '{0}{1}'".format(entity, idx))
-
+        rules.extend(
+            "{0} -> '{0}{1}'".format(entity, idx)
+            for idx in range(unique_entities)
+        )
     return "\n".join(rules)

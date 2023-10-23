@@ -27,8 +27,6 @@ try:
     nn_module = _get_module_or_attr("torch.nn", "Module")
 except ImportError:
     nn_module = object
-    pass
-
 logger = logging.getLogger(__name__)
 
 
@@ -71,7 +69,7 @@ class EmbeddingLayer(nn_module):
                 for idx, emb in embedding_weights.items():
                     self.embeddings.weight.data[idx] = torch.as_tensor(emb)
                 msg = f"Initialized {len(embedding_weights)} number of embedding weights " \
-                      f"from the embedder model"
+                          f"from the embedder model"
                 logger.info(msg)
             else:
                 # when weights are passed as an array or tensor
@@ -80,9 +78,9 @@ class EmbeddingLayer(nn_module):
 
         self.embedding_for_coefficients = None
         if coefficients is not None:
-            if not len(coefficients) == num_tokens:
+            if len(coefficients) != num_tokens:
                 msg = f"Length of coefficients ({len(coefficients)}) must match the number of " \
-                      f"embeddings ({num_tokens})"
+                          f"embeddings ({num_tokens})"
                 raise ValueError(msg)
             self.embedding_for_coefficients = nn.Embedding(num_tokens, 1, padding_idx=padding_idx)
             self.embedding_for_coefficients.load_state_dict(
@@ -162,10 +160,7 @@ class CnnLayer(nn_module):
         # list([BS, n, SEQ_LEN]) -> list([BS, n])
         maxpool_conv_outputs = [F.max_pool1d(out, out.size(2)).squeeze(2) for out in conv_outputs]
 
-        # list([BS, n]) -> [BS, sum(n)]
-        outputs = torch.cat(maxpool_conv_outputs, dim=1)
-
-        return outputs
+        return torch.cat(maxpool_conv_outputs, dim=1)
 
 
 class LstmLayer(nn_module):
@@ -211,9 +206,7 @@ class LstmLayer(nn_module):
         packed = pack_padded_sequence(padded_token_embs, lengths,
                                       batch_first=True, enforce_sorted=False)
         lstm_outputs, _ = self.lstm(packed)
-        outputs = pad_packed_sequence(lstm_outputs, batch_first=True)[0]
-
-        return outputs
+        return pad_packed_sequence(lstm_outputs, batch_first=True)[0]
 
 
 class PoolingLayer(nn_module):
@@ -328,9 +321,9 @@ class SplittingAndPoolingLayer(nn_module):
             # TODO: Number of terminals can also be 1 (maybe just left or just right) in some models
             if self.number_of_terminal_tokens != 2:
                 msg = f"Unable to combine sub-tokens' representations for each word into one in " \
-                      f"{self.__class__.__name__}. It is possible that your choice of tokenizer " \
-                      f"has {self.number_of_terminal_tokens} terminal token instead of assumed " \
-                      f"2 terminals."  # (eg. t5-base tokenizer)
+                          f"{self.__class__.__name__}. It is possible that your choice of tokenizer " \
+                          f"has {self.number_of_terminal_tokens} terminal token instead of assumed " \
+                          f"2 terminals."  # (eg. t5-base tokenizer)
                 raise NotImplementedError(msg)
 
             # since list_of_subgroup_lengths consists of lengths of only non-terminal subgroups but
@@ -347,20 +340,16 @@ class SplittingAndPoolingLayer(nn_module):
             splits = torch.split(tensor_2d, list_of_subgroup_lengths.tolist(), dim=0)
         except RuntimeError as e:
             msg = f"Unable to combine sub-tokens' representations for each word into one in " \
-                  f"{self.__class__.__name__}. It is possible that your choice of tokenizer " \
-                  f"does not split input text at whitespace (eg. robert-base tokenizer), due " \
-                  f"to which one-representation-per-word cannot be obtained to do tagging at " \
-                  f"word-level for token classification."
+                      f"{self.__class__.__name__}. It is possible that your choice of tokenizer " \
+                      f"does not split input text at whitespace (eg. robert-base tokenizer), due " \
+                      f"to which one-representation-per-word cannot be obtained to do tagging at " \
+                      f"word-level for token classification."
             raise ValueError(msg) from e
         padded_token_embs = pad_sequence(splits, batch_first=True)  # [BS', SEQ_LEN', EMD_DIM]
 
-        # return dims: [len(list_of_subgroup_lengths), EMD_DIM]
-        pooled_repr_for_each_subgroup = self.pooling_layer(
-            padded_token_embs=padded_token_embs,
-            lengths=list_of_subgroup_lengths
+        return self.pooling_layer(
+            padded_token_embs=padded_token_embs, lengths=list_of_subgroup_lengths
         )
-
-        return pooled_repr_for_each_subgroup
 
     def forward(
         self,
@@ -368,14 +357,14 @@ class SplittingAndPoolingLayer(nn_module):
         span_lengths: "List[Tensor1d[int]]",
         discard_terminals: bool = None
     ):
-        # padded_token_embs: dim: [BS, SEQ_LEN, EMD_DIM]
-        # span_lengths:      dim: List[List of int summing up to SEQ_LEN' <= SEQ_LEN]
-        # discard_terminals: bool
-        # returns:           dim: [BS, SEQ_LEN', EMD_DIM]
-
-        outputs = pad_sequence([
-            self._split_and_pool(_padded_token_embs, _span_lengths, discard_terminals)
-            for _padded_token_embs, _span_lengths in zip(padded_token_embs, span_lengths)
-        ], batch_first=True)
-
-        return outputs
+        return pad_sequence(
+            [
+                self._split_and_pool(
+                    _padded_token_embs, _span_lengths, discard_terminals
+                )
+                for _padded_token_embs, _span_lengths in zip(
+                    padded_token_embs, span_lengths
+                )
+            ],
+            batch_first=True,
+        )

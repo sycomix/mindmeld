@@ -48,11 +48,10 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
         encoded_examples_arr = np.asarray(X, dtype="float32")
         tags_by_example_arr = self._predict(encoded_examples_arr)
 
-        resized_predicted_tags = []
-        for query, seq_len in zip(tags_by_example_arr, self.sequence_lengths):
-            resized_predicted_tags.append(query[:seq_len])
-
-        return resized_predicted_tags
+        return [
+            query[:seq_len]
+            for query, seq_len in zip(tags_by_example_arr, self.sequence_lengths)
+        ]
 
     def set_params(self, **parameters):
         """
@@ -330,15 +329,12 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
         batch_size_dim = tf.shape(self.query_input_tf)[0]
 
         if self.use_char_embeddings:
-            word_level_char_embeddings_list = []
-
-            for window_size in self.char_window_sizes:
-                word_level_char_embeddings_list.append(
-                    self.apply_convolution(
-                        self.char_input_tf, batch_size_dim, window_size
-                    )
+            word_level_char_embeddings_list = [
+                self.apply_convolution(
+                    self.char_input_tf, batch_size_dim, window_size
                 )
-
+                for window_size in self.char_window_sizes
+            ]
             word_level_char_embedding = tf.concat(word_level_char_embeddings_list, 2)
 
             # Combined the two embeddings
@@ -441,8 +437,7 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
             [batch_size, self.padding_length, self.word_level_character_embedding_size],
         )
 
-        word_level_char_embedding = tf.nn.relu(max_pool + char_convolution_bias)
-        return word_level_char_embedding
+        return tf.nn.relu(max_pool + char_convolution_bias)
 
     def _define_optimizer_and_cost(self):
         """This function defines the optimizer and cost function of the LSTM model
@@ -560,14 +555,14 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
         """
 
         initial_cell_state = tf.get_variable(
-            "initial_cell_state_{}".format(name),
+            f"initial_cell_state_{name}",
             shape=[1, hidden_dimension],
             dtype=tf.float32,
             initializer=initializer,
         )
 
         initial_output_state = tf.get_variable(
-            "initial_output_state_{}".format(name),
+            f"initial_output_state_{name}",
             shape=[1, hidden_dimension],
             dtype=tf.float32,
             initializer=initializer,
@@ -773,8 +768,7 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
 
             combined_gaz_features = set()
             for key in extracted_gaz.keys():
-                regex_match = re.match(GAZ_PATTERN_MATCH, key)
-                if regex_match:
+                if regex_match := re.match(GAZ_PATTERN_MATCH, key):
                     # Examples of gaz features here are:
                     # in-gaz|type:city|pos:start|p_fe,
                     # in-gaz|type:city|pos:end|pct-char-len
@@ -787,7 +781,7 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
                         regex_match.group(REGEX_TYPE_POSITIONAL_INDEX)
                     )
 
-            if len(combined_gaz_features) != 0:
+            if combined_gaz_features:
                 total_encoding = np.zeros(self.gaz_dimension, dtype=np.int)
                 for encoding in self._gaz_transform(list(combined_gaz_features)):
                     total_encoding = np.add(total_encoding, encoding)
@@ -905,9 +899,10 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
 
         decoded_queries = []
         for idx, encoded_predict in enumerate(output):
-            decoded_query = []
-            for tag in encoded_predict[: self.sequence_lengths[idx]]:
-                decoded_query.append(self.label_encoder.classes_[tag])
+            decoded_query = [
+                self.label_encoder.classes_[tag]
+                for tag in encoded_predict[: self.sequence_lengths[idx]]
+            ]
             decoded_queries.append(decoded_query)
 
         return decoded_queries
@@ -943,13 +938,12 @@ class LstmModel(Tagger):  # pylint: disable=too-many-instance-attributes
 
         decoded_queries = []
         for idx, encoded_predict in enumerate(class_output):
-            decoded_query = []
-            for token_idx, tag in enumerate(
-                encoded_predict[: self.sequence_lengths[idx]]
-            ):
-                decoded_query.append(
-                    [self.label_encoder.classes_[tag], output[idx][token_idx][tag]]
+            decoded_query = [
+                [self.label_encoder.classes_[tag], output[idx][token_idx][tag]]
+                for token_idx, tag in enumerate(
+                    encoded_predict[: self.sequence_lengths[idx]]
                 )
+            ]
             decoded_queries.append(decoded_query)
 
         return decoded_queries

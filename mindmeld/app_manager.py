@@ -44,8 +44,7 @@ def freeze_params(params):
         params = FrozenParams(**dict(params))
     elif not isinstance(params, FrozenParams):
         raise TypeError(
-            "Invalid type for params argument. "
-            "Should be dict or {}".format(FrozenParams.__name__)
+            f"Invalid type for params argument. Should be dict or {FrozenParams.__name__}"
         )
     return params
 
@@ -224,8 +223,7 @@ class ApplicationManager:
         dm_responder = self.dialogue_manager.apply_handler(
             request, response, target_dialogue_state=params.target_dialogue_state
         )
-        modified_dm_responder = self._post_dm(dm_responder)
-        return modified_dm_responder
+        return self._post_dm(dm_responder)
 
     async def _parse_async(
         self, text, params=None, context=None, frame=None, form=None, history=None, verbose=False
@@ -284,8 +282,7 @@ class ApplicationManager:
         dm_responder = await self.dialogue_manager.apply_handler(
             request, response, target_dialogue_state=params.target_dialogue_state
         )
-        modified_dm_responder = self._post_dm(dm_responder)
-        return modified_dm_responder
+        return self._post_dm(dm_responder)
 
     def _post_dm(self, dm_response):
         # Append this item to the history, but don't recursively store history

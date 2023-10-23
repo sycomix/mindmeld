@@ -129,9 +129,7 @@ class Embedder(ABC):
             return os.path.abspath(cache_path)
 
         def __contains__(self, text):
-            if text in self.data:
-                return True
-            return False
+            return text in self.data
 
         def __getitem__(self, text, default=None):
             return self.data.get(text, default)
@@ -144,7 +142,6 @@ class Embedder(ABC):
                 del self.data[text]
             except KeyError as e:
                 logger.error(e)
-                pass
 
         def __iter__(self):
             # zip texts and encodings into a dictionary for iteration
@@ -299,9 +296,9 @@ class Embedder(ABC):
         for key, value in mean_or_max_pooled_whitelist_embs.items():
             value = np.asarray(value).reshape(-1)
             known_emb_dim = getattr(self, "emb_dim", None)
-            if known_emb_dim and not len(value) == known_emb_dim:
+            if known_emb_dim and len(value) != known_emb_dim:
                 msg = f"Expected superficial embedding of length {known_emb_dim} but found " \
-                      f"{len(value)}. Not adding the embedding for {key} to cache."
+                          f"{len(value)}. Not adding the embedding for {key} to cache."
                 logger.error(msg)
             if key in self.cache:
                 msg = f"Overwriting a superficial embedding for {key}"
@@ -359,8 +356,8 @@ class Embedder(ABC):
         tgt_texts = [*self.cache.data.keys()] if not tgt_texts else tgt_texts
         if not tgt_texts:
             msg = "The list of target texts are empty to compute similarities with the source " \
-                  "text(s). This can happen if the embedder cache is empty due to an unloaded " \
-                  "index or if passing in an empty list of target texts to find similarity with."
+                      "text(s). This can happen if the embedder cache is empty due to an unloaded " \
+                      "index or if passing in an empty list of target texts to find similarity with."
             raise ValueError(msg)
         top_n = len(tgt_texts) if not top_n else top_n
         similarity_function = similarity_function or self.pytorch_cos_sim
@@ -389,8 +386,8 @@ class Embedder(ABC):
                     similarity_scores = (similarity_scores - _mean) / denominator
                 else:
                     msg = f"Allowed values for `scores_normalizer` are only " \
-                          f"{['min_max_scaler', 'standard_scaler']}. Continuing without " \
-                          f"normalizing similarity scores."
+                              f"{['min_max_scaler', 'standard_scaler']}. Continuing without " \
+                              f"normalizing similarity scores."
                     logger.error(msg)
 
             if _return_as_dict:
@@ -408,15 +405,10 @@ class Embedder(ABC):
                         result = sorted(zip(tgt_texts, similarity_scores),
                                         key=lambda x: x[1],
                                         reverse=True)
-                    results.append(result)
                 else:
                     result = list(zip(tgt_texts, similarity_scores))
-                    results.append(result)
-
-        if is_single:
-            return results[0]
-
-        return results
+                results.append(result)
+        return results[0] if is_single else results
 
     @staticmethod
     def pytorch_cos_sim(src_vecs, tgt_vecs, return_tensor=False):
@@ -448,10 +440,7 @@ class Embedder(ABC):
         b_norm = torch_op("normalize", tgt_vecs, sub="nn.functional", p=2, dim=1)
         similarity_scores = torch_op("mm", a_norm, b_norm.transpose(0, 1))
 
-        if not return_tensor:
-            return similarity_scores.numpy()
-
-        return similarity_scores
+        return similarity_scores.numpy() if not return_tensor else similarity_scores
 
     @staticmethod
     def get_hashid(**kwargs):
@@ -514,15 +503,13 @@ class BertEmbedder(Embedder):  # pylint: disable=too-many-instance-attributes
                 "to use the built in bert embedder."
             )
 
-        # deprecated configs keys
-        model_name = kwargs.get("model_name")
-        if model_name:
+        if model_name := kwargs.get("model_name"):
             msg = "The argument 'model_name' is deprecated and will be removed in future " \
-                  "versions. Consider replacing it with 'pretrained_name_or_abspath'"
+                      "versions. Consider replacing it with 'pretrained_name_or_abspath'"
             warnings.warn(msg, DeprecationWarning)
             if pretrained_name_or_abspath:
                 msg = f"Must pass-in only one of 'pretrained_name_or_abspath' and 'model_name' " \
-                      f"params while instantiating a {self.__class__.__name__} class."
+                          f"params while instantiating a {self.__class__.__name__} class."
                 raise ValueError(msg)
             pretrained_name_or_abspath = model_name
 
@@ -530,7 +517,7 @@ class BertEmbedder(Embedder):  # pylint: disable=too-many-instance-attributes
         self.pretrained_name_or_abspath = pretrained_name_or_abspath
         if not self.pretrained_name_or_abspath:
             msg = f"A valid 'pretrained_name_or_abspath' param must be passed " \
-                  f"to instantiate {self.__class__.__name__}."
+                      f"to instantiate {self.__class__.__name__}."
             raise ValueError(msg)
         self.bert_output_type = kwargs.get("bert_output_type", "mean")
         self.quantize_model = kwargs.get("quantize_model", False)
@@ -545,10 +532,10 @@ class BertEmbedder(Embedder):  # pylint: disable=too-many-instance-attributes
         self._output_value = kwargs.get("output_value", 'sentence_embedding')
         self._convert_to_numpy = kwargs.get("convert_to_numpy", True)
         self._convert_to_tensor = kwargs.get("convert_to_tensor", False)
-        self._show_progress_bar = (
-            logger.getEffectiveLevel() == logging.INFO or
-            logger.getEffectiveLevel() == logging.DEBUG
-        )
+        self._show_progress_bar = logger.getEffectiveLevel() in [
+            logging.INFO,
+            logging.DEBUG,
+        ]
 
         # unique id for the embedder model based on specified configurations
         self._model_id = str(self.get_hashid(
@@ -680,10 +667,7 @@ class BertEmbedder(Embedder):  # pylint: disable=too-many-instance-attributes
 
         self.transformer_model.eval()
         if show_progress_bar is None:
-            show_progress_bar = (
-                logger.getEffectiveLevel() == logging.INFO
-                or logger.getEffectiveLevel() == logging.DEBUG
-            )
+            show_progress_bar = logger.getEffectiveLevel() in [logging.INFO, logging.DEBUG]
 
         if convert_to_tensor:
             convert_to_numpy = False

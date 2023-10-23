@@ -69,9 +69,7 @@ class ConversationClient:
         """
         response = self.process(text, params=params, frame=frame, form=form)
 
-        # handle directives
-        response_texts = [self._follow_directive(a) for a in response["directives"]]
-        return response_texts
+        return [self._follow_directive(a) for a in response["directives"]]
 
     def process(self, text, params=None, frame=None, form=None):
         """Send a message in the conversation. The message will be processed by
@@ -133,14 +131,10 @@ class ConversationClient:
                 suggestions = directive["payload"]
                 if not suggestions:
                     raise ValueError
-                msg = "Suggestion{}:".format("" if len(suggestions) == 1 else "s")
+                msg = f'Suggestion{"" if len(suggestions) == 1 else "s"}:'
                 texts = []
                 for idx, suggestion in enumerate(suggestions):
-                    if idx > 0:
-                        msg += ", {!r}"
-                    else:
-                        msg += " {!r}"
-
+                    msg += ", {!r}" if idx > 0 else " {!r}"
                     texts.append(self._generate_suggestion_text(suggestion))
                 msg = msg.format(*texts)
             elif directive_name == DirectiveNames.LIST:
@@ -167,7 +161,7 @@ class ConversationClient:
         if "text" in suggestion:
             pieces.append(suggestion["text"])
         if suggestion["type"] != "text":
-            pieces.append("({})".format(suggestion["type"]))
+            pieces.append(f'({suggestion["type"]})')
 
         return " ".join(pieces)
 

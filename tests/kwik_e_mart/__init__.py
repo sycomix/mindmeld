@@ -76,10 +76,9 @@ def default(request, responder):
 @app.dialogue_flow(domain="store_info", intent="get_store_hours")
 def send_store_hours(request, responder):
     active_store = None
-    store_entity = next(
+    if store_entity := next(
         (e for e in request.entities if e["type"] == "store_name"), None
-    )
-    if store_entity:
+    ):
         try:
             stores = app.question_answerer.get(
                 index="stores", id=store_entity["value"]["id"]

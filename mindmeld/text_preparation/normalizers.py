@@ -112,11 +112,7 @@ class ASCIIFold(Normalizer):
         Returns:
             char: a ASCII character
         """
-        folded_str = ""
-        for char in text:
-            folded_str += self.fold_char_to_ascii(char)
-
-        return folded_str
+        return "".join(self.fold_char_to_ascii(char) for char in text)
 
     @staticmethod
     def load_ascii_folding_table():
@@ -247,7 +243,7 @@ class RegexNormalizerRule(Normalizer):
         return self._expr.sub(self.replacement, s)
 
     def tojson(self):
-        return {self.__class__.__name__ + "##" + self.pattern + "##" + self.replacement: None}
+        return {f"{self.__class__.__name__}##{self.pattern}##{self.replacement}": None}
 
 
 class RegexNormalizerRuleFactory:
@@ -353,7 +349,7 @@ class NormalizerFactory:
             NFKD.__name__: NFKD,
             Lowercase.__name__: Lowercase,
         }
-        normalizer_class = normalizer_classes.get(normalizer)
-        if not normalizer_class:
+        if normalizer_class := normalizer_classes.get(normalizer):
+            return normalizer_class()
+        else:
             raise TypeError(f"{normalizer} is not a valid Normalizer type.")
-        return normalizer_class()

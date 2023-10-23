@@ -35,12 +35,12 @@ def validate_language_code(value: Optional[str]) -> Optional[str]:
         return None
 
     if not isinstance(value, str):
-        raise ValidationError("Invalid language param: %s is not of type str." % value)
+        raise ValidationError(f"Invalid language param: {value} is not of type str.")
 
     # The pycountry APIs need the param to be in lowercase for processing
     value = value.lower()
 
-    if len(value) != 2 and len(value) != 3:
+    if len(value) not in [2, 3]:
         raise ValidationError(
             "Invalid language param: %s is not a "
             "valid ISO 639-1 or ISO 639-2 language code." % value
@@ -73,10 +73,12 @@ def validate_locale_code(value: Optional[str]) -> Optional[str]:
         return None
 
     if not isinstance(value, str):
-        raise ValidationError("Invalid locale_code param: %s is not of type str" % value)
+        raise ValidationError(f"Invalid locale_code param: {value} is not of type str")
 
     if len(value.split("_")) != 2:
-        raise ValidationError("Invalid locale_code param: %s is not a valid locale." % value)
+        raise ValidationError(
+            f"Invalid locale_code param: {value} is not a valid locale."
+        )
 
     language_code = value.split("_")[0].lower()
     if not validate_language_code(language_code):
@@ -96,7 +98,7 @@ def validate_locale_code(value: Optional[str]) -> Optional[str]:
         )
 
     # return the validated locale
-    return language_code + "_" + country_code
+    return f"{language_code}_{country_code}"
 
 
 def validate_locale_code_with_ref_language_code(locale: Optional[str],
@@ -188,7 +190,7 @@ def _validate_mask_nlp(nlp: Any,
                 if entity == '*':
                     continue
 
-                if entity and entity != '*':
+                if entity:
                     if entity not in nlp.domains[domain].intents[valid_intent].entities:
                         raise ValidationError(
                             f"Entity: {entity} is not in the NLP component hierarchy"
@@ -224,14 +226,14 @@ def deserialize_to_list_immutable_maps(value):
     """Custom attrs converter. Converts a list of elements into a list of immutables.Map
     objects.
     """
-    return tuple([immutables.Map(i) for i in value])
+    return tuple(immutables.Map(i) for i in value)
 
 
 def deserialize_to_lists_of_list_of_immutable_maps(values):
     """Custom attrs converter. Converts a list of elements into a list of immutables.Map
     objects.
     """
-    return tuple([deserialize_to_list_immutable_maps(value) for value in values])
+    return tuple(deserialize_to_list_immutable_maps(value) for value in values)
 
 
 def serialize_to_list_of_dicts(values):
@@ -279,9 +281,7 @@ class LocaleCodeField(fields.String):
                    attribute,  # pylint: disable=unused-argument
                    obj,  # pylint: disable=unused-argument
                    **kwargs):
-        if value is None:
-            return None
-        return str(value)
+        return None if value is None else str(value)
 
     def _deserialize(self,
                      value,

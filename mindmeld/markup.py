@@ -155,9 +155,7 @@ def read_query_file(file_path):
         with codecs.open(file_path, encoding="utf-8") as queries_file:
             for line in queries_file:
                 line = line.strip()
-                # only create query if line is not empty string
-                query_text = line.split("\t")[0].strip()
-                if query_text:
+                if query_text := line.split("\t")[0].strip():
                     yield query_text
     except IOError:
         logger.error("Problem reading file %s.", file_path)
@@ -452,24 +450,15 @@ def _tokenize_markup(markup):
                 token_is_meta = True
                 yield char
             elif char in END_CHARACTERS:
-                if char == GROUP_END:
-                    key = "group"
-                else:
-                    key = "entity"
+                key = "group" if char == GROUP_END else "entity"
                 if open_annotations[key] == 0:
-                    msg = "Mismatched end for {} at position {}: {}".format(
-                        key, idx, markup
-                    )
+                    msg = f"Mismatched end for {key} at position {idx}: {markup}"
                     raise MarkupError(msg)
                 if not token_is_meta:
-                    msg = "Missing label for {} at position {}: {}".format(
-                        key, idx, markup
-                    )
+                    msg = f"Missing label for {key} at position {idx}: {markup}"
                     raise MarkupError(msg)
                 if not token:
-                    msg = "Empty label for {} at position {}: {}".format(
-                        key, idx, markup
-                    )
+                    msg = f"Empty label for {key} at position {idx}: {markup}"
                     raise MarkupError(msg)
                 open_annotations[key] -= 1
 
@@ -482,9 +471,9 @@ def _tokenize_markup(markup):
 
         token += char
 
-    for key in open_annotations:
-        if open_annotations[key]:
-            raise MarkupError("Mismatched start for {}: {}".format(key, markup))
+    for key, value in open_annotations.items():
+        if value:
+            raise MarkupError(f"Mismatched start for {key}: {markup}")
 
     if token:
         yield token
@@ -527,8 +516,7 @@ def dump_queries(queries, markup_format=MINDMELD_FORMAT, **kwargs):
         str or tuple: A marked up representation of the query
     """
     if markup_format == BRAT_FORMAT:
-        for result in _dump_brat_queries(queries, **kwargs):
-            yield result
+        yield from _dump_brat_queries(queries, **kwargs)
         return
 
     for query in queries:
@@ -594,14 +582,13 @@ def _dump_brat(processed_query, **kwargs):
 
 def _dump_mindmeld(processed_query, **kwargs):
     raw_text = processed_query.query.text
-    markup = _mark_up_entities(
+    return _mark_up_entities(
         raw_text,
         processed_query.entities,
         exclude_entity=kwargs.get("no_entity"),
         exclude_role=kwargs.get("no_role"),
         exclude_group=kwargs.get("no_group"),
     )
-    return markup
 
 
 def validate_markup(markup, query_factory):
@@ -743,9 +730,7 @@ def _annotations_for_entity(entity, depth=0, parent_offset=0):
         annotations.extend(_annotations_for_entity(child, depth + 1, start))
 
     annotations = sorted(annotations, key=lambda a: a["depth"])
-    annotations = sorted(annotations, key=lambda a: a["start"])
-
-    return annotations
+    return sorted(annotations, key=lambda a: a["start"])
 
 
 def mark_down(markup):

@@ -112,7 +112,7 @@ class TaggerModel(Model):
         """
         attributes = self.__dict__.copy()
         attributes["_resources"] = {}
-        resources_to_persist = set(["sys_types"])
+        resources_to_persist = {"sys_types"}
         for key in resources_to_persist:
             attributes["_resources"][key] = self.__dict__["_resources"][key]
 
@@ -225,7 +225,7 @@ class TaggerModel(Model):
 
         types = [entity.entity.type for label in labels for entity in label]
         self.types = types
-        if len(set(types)) == 0:
+        if not set(types):
             self._no_entities = True
             logger.info(
                 "There are no labels in this label set, so we don't fit the model."
@@ -292,12 +292,12 @@ class TaggerModel(Model):
         predicted_tags = self._clf.extract_and_predict(
             examples, self.config, workspace_resource
         )
-        # Decode the tags to labels
-        labels = [
-            self._label_encoder.decode([example_predicted_tags], examples=[example])[0]
+        return [
+            self._label_encoder.decode(
+                [example_predicted_tags], examples=[example]
+            )[0]
             for example_predicted_tags, example in zip(predicted_tags, examples)
         ]
-        return labels
 
     def predict_proba(self, examples, dynamic_resource=None):
         """
@@ -324,12 +324,11 @@ class TaggerModel(Model):
         entities = self._label_encoder.decode([tags], examples=[examples[0]])[0]
         for entity in entities:
             entity_proba = \
-                probas[entity.normalized_token_span.start: entity.normalized_token_span.end + 1]
+                    probas[entity.normalized_token_span.start: entity.normalized_token_span.end + 1]
             # We assume that the score of the least likely tag in the sequence as the confidence
             # score of the entire entity sequence
             entity_confidence.append(min(entity_proba))
-        predicted_labels_scores = tuple(zip(entities, entity_confidence))
-        return predicted_labels_scores
+        return tuple(zip(entities, entity_confidence))
 
     def evaluate(self, examples, labels):
         """Evaluates a model against the given examples and labels
@@ -357,8 +356,7 @@ class TaggerModel(Model):
         ]
 
         config = self._get_effective_config()
-        model_eval = EntityModelEvaluation(config, evaluations)
-        return model_eval
+        return EntityModelEvaluation(config, evaluations)
 
     def _dump(self, path):
 
@@ -368,9 +366,7 @@ class TaggerModel(Model):
         metadata = {"serializable": self._clf.is_serializable}
 
         if self._clf.is_serializable:
-            metadata.update({
-                "model": self
-            })
+            metadata["model"] = self
         else:
             # underneath tagger dump for LSTM model, returned `model_dir` is None for MEMM & CRF
             self._clf.dump(path)
@@ -471,14 +467,13 @@ class PytorchTaggerModel(PytorchModel):
             for i, e in enumerate(examples)
         ]
 
-        model_eval = EntityModelEvaluation(self.config, evaluations)
-        return model_eval
+        return EntityModelEvaluation(self.config, evaluations)
 
     def fit(self, examples, labels, params=None):
 
         types = [entity.entity.type for label in labels for entity in label]
         self.types = types
-        if len(set(types)) == 0:
+        if not set(types):
             self._no_entities = True
             logger.info(
                 "There are no labels in this label set, so we don't fit the model."
@@ -528,12 +523,10 @@ class PytorchTaggerModel(PytorchModel):
             start_idx += seq_length
         y = list(decoded_y)
 
-        # Decode the tags to labels
-        labels = [
+        return [
             self._label_encoder.decode([_y], examples=[example])[0]
             for _y, example in zip(y, examples)
         ]
-        return labels
 
     def predict_proba(self, examples, dynamic_resource=None):
         del dynamic_resource
@@ -549,12 +542,11 @@ class PytorchTaggerModel(PytorchModel):
         entities = self._label_encoder.decode([tags], examples=[examples[0]])[0]
         for entity in entities:
             entity_proba = \
-                probas[entity.normalized_token_span.start: entity.normalized_token_span.end + 1]
+                    probas[entity.normalized_token_span.start: entity.normalized_token_span.end + 1]
             # We assume that the score of the least likely tag in the sequence as the confidence
             # score of the entire entity sequence
             entity_confidence.append(min(entity_proba))
-        predicted_labels_scores = tuple(zip(entities, entity_confidence))
-        return predicted_labels_scores
+        return tuple(zip(entities, entity_confidence))
 
     def _dump(self, path):
 

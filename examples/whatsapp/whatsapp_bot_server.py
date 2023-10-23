@@ -50,5 +50,5 @@ if __name__ == '__main__':
     configure_logs()
     server = WhatsappBotServer(name='whatsapp', app_path='.')
     port_number = 8080
-    print('Running server on port {}...'.format(port_number))
+    print(f'Running server on port {port_number}...')
     server.run(host='localhost', port=port_number)

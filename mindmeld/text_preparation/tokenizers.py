@@ -94,11 +94,11 @@ class CharacterTokenizer(Tokenizer):
         """
         if text == "":
             return []
-        tokens = []
-        for idx, char in enumerate(text):
-            if not char.isspace():
-                tokens.append({"start": idx, "text": char})
-        return tokens
+        return [
+            {"start": idx, "text": char}
+            for idx, char in enumerate(text)
+            if not char.isspace()
+        ]
 
 
 class LetterTokenizer(Tokenizer):
@@ -186,9 +186,7 @@ class LetterTokenizer(Tokenizer):
             token_text += text[index]
             is_last_char = index == len(token_num_by_char) - 1
             # Close off entity if char is the last or if next char is a different token number
-            if is_last_char or (
-                not is_last_char and token_num != token_num_by_char[index + 1]
-            ):
+            if is_last_char or token_num != token_num_by_char[index + 1]:
                 tokens.append({"start": start, "text": token_text})
                 token_text = ""
         return tokens
@@ -217,7 +215,7 @@ class WhiteSpaceTokenizer(Tokenizer):
         token = {}
         token_text = ""
         # Space added at the end of text to close off the last token
-        for i, char in enumerate(text + " "):
+        for i, char in enumerate(f"{text} "):
             if char.isspace():
                 if token and token_text:
                     token["text"] = token_text
@@ -288,10 +286,10 @@ class TokenizerFactory:
             WhiteSpaceTokenizer.__name__: WhiteSpaceTokenizer,
             SpacyTokenizer.__name__: lambda: SpacyTokenizer(language, spacy_model_size),
         }
-        tokenizer_class = tokenizer_classes.get(tokenizer)
-        if not tokenizer_class:
+        if tokenizer_class := tokenizer_classes.get(tokenizer):
+            return tokenizer_class()
+        else:
             raise TypeError(f"{tokenizer} is not a valid Tokenizer type.")
-        return tokenizer_class()
 
     @staticmethod
     def get_tokenizer_by_language(language):

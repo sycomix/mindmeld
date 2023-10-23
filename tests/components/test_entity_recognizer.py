@@ -29,7 +29,7 @@ def test_tagger_get_stats(kwik_e_mart_app_path, capsys):
     eval = er.evaluate()
     eval.print_stats()
     captured = capsys.readouterr()
-    all_elems = set([k for k in captured.out.replace("\n", "").split(" ") if k != ""])
+    all_elems = {k for k in captured.out.replace("\n", "").split(" ") if k != ""}
     assert "Overall" in all_elems
     assert "statistics:" in all_elems
     assert "accuracy" in all_elems

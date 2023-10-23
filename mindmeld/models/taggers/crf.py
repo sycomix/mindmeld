@@ -39,12 +39,10 @@ class ConditionalRandomFields(Tagger):
     @staticmethod
     def _predict_proba(X):
         del X
-        pass
 
     @staticmethod
     def load(model_path):
         del model_path
-        pass
 
     def fit(self, X, y):
         self._clf.fit(X, y)
@@ -78,9 +76,10 @@ class ConditionalRandomFields(Tagger):
         marginals_dict = self._clf.predict_marginals(X)
         marginal_tuples = []
         for query_index, query_seq in enumerate(seq):
-            query_marginal_tuples = []
-            for i, tag in enumerate(query_seq):
-                query_marginal_tuples.append([tag, marginals_dict[query_index][i][tag]])
+            query_marginal_tuples = [
+                [tag, marginals_dict[query_index][i][tag]]
+                for i, tag in enumerate(query_seq)
+            ]
             marginal_tuples.append(query_marginal_tuples)
         return marginal_tuples
 
@@ -104,7 +103,7 @@ class ConditionalRandomFields(Tagger):
         """
         # Extract features and classes
         feats = [] if in_memory else FileBackedList()
-        for _, example in enumerate(examples):
+        for example in examples:
             feats.append(self.extract_example_features(example, config, resources))
         X = self._preprocess_data(feats, fit)
         return X, y, None
@@ -144,9 +143,10 @@ class ConditionalRandomFields(Tagger):
         for feat_seq in self._feat_binner.transform(X):
             feat_list = []
             for feature in feat_seq:
-                temp_list = []
-                for feat_type in sorted(feature.keys()):
-                    temp_list.append("{}={}".format(feat_type, str(feature[feat_type])))
+                temp_list = [
+                    f"{feat_type}={str(feature[feat_type])}"
+                    for feat_type in sorted(feature.keys())
+                ]
                 feat_list.append(temp_list)
             new_X.append(feat_list)
         return new_X
@@ -256,8 +256,7 @@ class FeatureBinner:
             for word in sentence:
                 new_word = {}
                 for feat_name, feat_value in word.items():
-                    new_feats = self._map_feature(feat_name, feat_value)
-                    if new_feats:
+                    if new_feats := self._map_feature(feat_name, feat_value):
                         new_word.update(new_feats)
                 new_sentence.append(new_word)
             new_X_train.append(new_sentence)

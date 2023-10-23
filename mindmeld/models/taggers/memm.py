@@ -34,12 +34,10 @@ class MemmModel(Tagger):
     @staticmethod
     def _predict_proba(X):
         del X
-        pass
 
     @staticmethod
     def load(model_path):
         del model_path
-        pass
 
     def fit(self, X, y):
         self._clf.fit(X, y)
@@ -163,20 +161,18 @@ class MemmModel(Tagger):
             (Object): A feature selector which returns a reduced feature matrix, \
                 given the full feature matrix, X and the class labels, y.
         """
-        selector = {
+        return {
             "l1": SelectFromModel(LogisticRegression(penalty="l1", C=1)),
             "f": SelectPercentile(),
         }.get(selector_type)
-        return selector
 
     @staticmethod
     def _get_feature_scaler(scale_type):
         """Get a feature value scaler based on the model settings"""
-        scaler = {
+        return {
             "std-dev": StandardScaler(with_mean=False),
             "max-abs": MaxAbsScaler(),
         }.get(scale_type)
-        return scaler
 
     def setup_model(self, config):
         if config.model_settings is None:

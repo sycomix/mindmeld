@@ -217,9 +217,7 @@ class EntityRecognizer(Classifier):
 
             gazetteers = self._resource_loader.get_gazetteers()
             text_preparation_pipeline = self._resource_loader.get_text_preparation_pipeline()
-            sys_types = set(
-                (t for t in self.entity_types if Entity.is_system_entity(t))
-            )
+            sys_types = {t for t in self.entity_types if Entity.is_system_entity(t)}
 
             w_ngram_freq = er_data.get("w_ngram_freq")
             c_ngram_freq = er_data.get("c_ngram_freq")
@@ -290,8 +288,7 @@ class EntityRecognizer(Classifier):
             query = self._resource_loader.query_factory.create_query(
                 query, time_zone=time_zone, timestamp=timestamp
             )
-        predict_proba_result = self._model.predict_proba([query])
-        return predict_proba_result
+        return self._model.predict_proba([query])
 
     def _get_queries_from_label_set(self, label_set=DEFAULT_TRAIN_SET_REGEX):
         return self._resource_loader.get_flattened_label_set(
@@ -304,9 +301,8 @@ class EntityRecognizer(Classifier):
         return (queries.queries(), queries.entities())
 
     def _get_examples_and_labels_hash(self, queries):
-        hashable_queries = (
-            [self.domain + "###" + self.intent + "###entity###"]
-            + sorted(list(queries.raw_queries()))
+        hashable_queries = [f"{self.domain}###{self.intent}###entity###"] + sorted(
+            list(queries.raw_queries())
         )
         return self._resource_loader.hash_list(hashable_queries)
 

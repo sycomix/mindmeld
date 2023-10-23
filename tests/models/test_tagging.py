@@ -230,7 +230,7 @@ def test_get_boundary_counts(kwik_e_mart_nlp, expected, predicted, expected_coun
 
     for key in predicted_counts.keys():
         if predicted_counts[key] != expected_counts.get(key, 0):
-            print("predicted counts: {}".format(predicted_counts))
+            print(f"predicted counts: {predicted_counts}")
             assert False
 
 

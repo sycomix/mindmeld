@@ -213,7 +213,7 @@ class Annotator(ABC):
             processed_queries = Annotator._get_processed_queries(
                 file_path=path, query_factory=query_factory
             )
-            tqdm_desc = "Processing " + path + ": "
+            tqdm_desc = f"Processing {path}: "
             for processed_query in tqdm(processed_queries, ascii=True, desc=tqdm_desc):
                 entity_types = file_entities_map[path]
                 if action == AnnotatorAction.ANNOTATE:
@@ -316,10 +316,9 @@ class Annotator(ABC):
         entity = Entity(
             text=item["body"], entity_type=item["dim"], role=role, value=item["value"]
         )
-        query_entity = QueryEntity.from_query(
+        return QueryEntity.from_query(
             query=processed_query.query, span=span, entity=entity
         )
-        return query_entity
 
     @staticmethod
     def _resolve_conflicts(target_entities, other_entities):
@@ -410,7 +409,7 @@ class SpacyAnnotator(Annotator):
         )
 
     @property
-    def supported_entity_types(self):  # pylint: disable=W0236
+    def supported_entity_types(self):    # pylint: disable=W0236
         """This function generates a list of supported entities for the given language.
         These entities labels are mapped to MindMeld sys_entities.
         The "misc" spacy entity is skipped since the category too broad to be
@@ -432,8 +431,7 @@ class SpacyAnnotator(Annotator):
                 supported_entities.add(f"sys_{entity}")
         if "sys_weight" in supported_entities:
             supported_entities.update(["sys_distance", "sys_other-quantity"])
-        supported_entities = self._remove_unresolvable_entities(supported_entities)
-        return supported_entities
+        return self._remove_unresolvable_entities(supported_entities)
 
     def _remove_unresolvable_entities(self, entities):
         """Remove entities that need duckling to be resolved but are not
@@ -446,13 +444,12 @@ class SpacyAnnotator(Annotator):
         """
         filtered_entities = []
         for entity in entities:
-            if entity not in SPACY_SYS_ENTITIES_NOT_IN_DUCKLING:
-                if (
+            if entity in SPACY_SYS_ENTITIES_NOT_IN_DUCKLING:
+                filtered_entities.append(entity)
+            elif (
                     self.language in DUCKLING_TO_SYS_ENTITY_MAPPINGS
                     and entity in DUCKLING_TO_SYS_ENTITY_MAPPINGS[self.language]
                 ):
-                    filtered_entities.append(entity)
-            else:
                 filtered_entities.append(entity)
         return filtered_entities
 
@@ -656,8 +653,10 @@ class SpacyAnnotator(Annotator):
         for symbol in CURRENCY_SYMBOLS:
             if symbol in sentence:
                 start = entity["start"]
-                if (start == 1 and sentence[0] == symbol) or (
-                    start >= 2 and sentence[start - 2 : start] == " " + symbol
+                if (
+                    (start == 1 and sentence[0] == symbol)
+                    or start >= 2
+                    and sentence[start - 2 : start] == f" {symbol}"
                 ):
                     entity["start"] -= 1
                     entity["body"] = sentence[entity["start"] : entity["end"]]
@@ -719,13 +718,11 @@ class SpacyAnnotator(Annotator):
                     entity["dim"] = ANNOTATOR_TO_SYS_ENTITY_MAPPINGS[entity_type]
                     return entity
 
-        if SpacyAnnotator._resolve_largest_substring(
+        if not SpacyAnnotator._resolve_largest_substring(
             entity, candidates, entity_types=entity_types, is_time_related=False
         ):
-            return entity
-        else:
             entity["dim"] = "sys_other-quantity"
-            return entity
+        return entity
 
     def _resolve_percent(self, entity):
         """Resolves an entity related to percentage. Uses a heuristic of finding
@@ -969,12 +966,11 @@ class NoTranslationDucklingAnnotator(Annotator):
         Returns:
             filtered_candidates (list): List of filtered duckling candidates.
         """
-        filtered_candidates = (
+        return (
             NoTranslationDucklingAnnotator._remove_unresolved_sys_amount_of_money(
                 candidates
             )
         )
-        return filtered_candidates
 
     @staticmethod
     def _remove_unresolved_sys_amount_of_money(candidates):
@@ -1186,10 +1182,9 @@ class MultiLingualAnnotator(Annotator):
         duckling_entities = self.duckling_annotator.parse(
             sentence, entity_types=entity_types
         )
-        merged_entities = Annotator._resolve_conflicts(
+        return Annotator._resolve_conflicts(
             non_en_spacy_entities, duckling_entities
         )
-        return merged_entities
 
     @property
     def supported_entity_types(self):  # pylint: disable=W0236

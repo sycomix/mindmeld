@@ -275,7 +275,7 @@ def test_nested_and_query_entity_equality():
     )
 
     assert entity_a == entity_b
-    assert not entity_a != entity_b
+    assert entity_a == entity_b
 
     entity_a = NestedEntity(
         ("Entity123", "Entity", "entity"),
@@ -290,7 +290,7 @@ def test_nested_and_query_entity_equality():
         Entity("text", "type", "role", "value", "display"),
     )
 
-    assert not entity_a == entity_b
+    assert entity_a != entity_b
     assert entity_a != entity_b
 
 

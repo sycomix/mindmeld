@@ -21,7 +21,7 @@ class MindMeldVersionWarning(UserWarning):
 class MindMeldError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
-        self.message = args[0] if len(args) > 0 else None
+        self.message = args[0] if args else None
 
 
 class BadMindMeldRequestError(MindMeldError):

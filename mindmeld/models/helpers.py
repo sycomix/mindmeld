@@ -128,9 +128,8 @@ def create_annotator(config):
         )
     if config["annotator_class"] in ANNOTATOR_MAP:
         return ANNOTATOR_MAP[config.pop("annotator_class")](**config)
-    else:
-        msg = "Invalid model configuration: Unknown model type {!r}"
-        raise KeyError(msg.format(config["annotator_class"]))
+    msg = "Invalid model configuration: Unknown model type {!r}"
+    raise KeyError(msg.format(config["annotator_class"]))
 
 
 def get_feature_extractor(example_type, name):
@@ -311,10 +310,7 @@ def mask_numerics(token):
     Returns:
         str: A masked string for digit characters
     """
-    if token.isdigit():
-        return "#NUM"
-    else:
-        return re.sub(r"\d", "8", token)
+    return "#NUM" if token.isdigit() else re.sub(r"\d", "8", token)
 
 
 def get_ngram(tokens, start, length):
@@ -507,10 +503,9 @@ def ingest_dynamic_gazetteer(resource, dynamic_resource=None, text_preparation_p
         text_preparation_pipeline
         or TextPreparationPipelineFactory.create_default_text_preparation_pipeline()
     )
-    workspace_resource = merge_gazetteer_resource(
+    return merge_gazetteer_resource(
         resource, dynamic_resource, text_preparation_pipeline
     )
-    return workspace_resource
 
 
 def requires(resource):

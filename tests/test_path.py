@@ -8,6 +8,7 @@ test_path
 Tests for `path` module.
 """
 
+
 import os
 import pytest
 
@@ -18,18 +19,16 @@ APP_NAME = "kwik_e_mart"
 APP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), APP_NAME)
 
 DOMAIN_NAME = "store_info"
-DOMAINS = set([DOMAIN_NAME, 'banking'])
+DOMAINS = {DOMAIN_NAME, 'banking'}
 
-INTENTS = set(
-    [
-        "exit",
-        "find_nearest_store",
-        "get_store_hours",
-        "get_store_number",
-        "greet",
-        "help",
-    ]
-)
+INTENTS = {
+    "exit",
+    "find_nearest_store",
+    "get_store_hours",
+    "get_store_number",
+    "greet",
+    "help",
+}
 
 
 def test_get_domains():
@@ -71,26 +70,6 @@ def test_get_indexes():
     assert "stores" in indexes
 
 
-@pytest.mark.parametrize(
-    "path, language, locale",
-    [
-        # test absolute file path
-        (APP_PATH, "en", "en_CA"),
-        # test relative file path
-        (
-            "{}/../tests/{}".format(
-                os.path.dirname(os.path.abspath(__file__)), APP_NAME
-            ),
-            "en",
-            "en_CA",
-        ),
-        # test relative invalid file path
-        (".", "en", "en_US"),
-        # test None file path
-        (None, "en", "en_US"),
-        # test invalid file path
-        ("INVALID_FILE_PATH", "en", "en_US"),
-    ],
-)
+@pytest.mark.parametrize("path, language, locale", [(APP_PATH, "en", "en_CA"), (f"{os.path.dirname(os.path.abspath(__file__))}/../tests/{APP_NAME}", "en", "en_CA"), (".", "en", "en_US"), (None, "en", "en_US"), ("INVALID_FILE_PATH", "en", "en_US")])
 def test_language_config(path, language, locale):
     assert get_language_config(path) == (language, locale)

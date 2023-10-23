@@ -141,7 +141,7 @@ class DialogflowConverter(Converter):
                     continue
 
                 dialogflow_entity_file = os.path.join(
-                    self.dialogflow_project_directory, "entities", sub + ".json"
+                    self.dialogflow_project_directory, "entities", f"{sub}.json"
                 )
 
                 mindmeld_entity_directory_name = self.clean_check(
@@ -165,30 +165,27 @@ class DialogflowConverter(Converter):
 
     @staticmethod
     def _create_entity_file(dialogflow_entity_file, mindmeld_entity_directory):
-        source_en = open(dialogflow_entity_file, "r")
-        target_gazetteer = open(
-            os.path.join(mindmeld_entity_directory, "gazetteer.txt"), "w"
-        )
-        target_mapping = open(
-            os.path.join(mindmeld_entity_directory, "mapping.json"), "w"
-        )
+        with open(dialogflow_entity_file, "r") as source_en:
+            target_gazetteer = open(
+                os.path.join(mindmeld_entity_directory, "gazetteer.txt"), "w"
+            )
+            target_mapping = open(
+                os.path.join(mindmeld_entity_directory, "mapping.json"), "w"
+            )
 
-        datastore = json.load(source_en)
-        mapping_dict = {"entities": []}
+            datastore = json.load(source_en)
+            mapping_dict = {"entities": []}
 
-        for item in datastore:
-            new_dict = {}
-            while ("value" in item) and (item["value"] in item["synonyms"]):
-                item["synonyms"].remove(item["value"])
-            new_dict["whitelist"] = item["synonyms"]
-            new_dict["cname"] = item["value"]
-            mapping_dict["entities"].append(new_dict)
+            for item in datastore:
+                while ("value" in item) and (item["value"] in item["synonyms"]):
+                    item["synonyms"].remove(item["value"])
+                new_dict = {"whitelist": item["synonyms"], "cname": item["value"]}
+                mapping_dict["entities"].append(new_dict)
 
-            target_gazetteer.write(item["value"] + "\n")
+                target_gazetteer.write(item["value"] + "\n")
 
-        json.dump(mapping_dict, target_mapping, ensure_ascii=False, indent=2)
+            json.dump(mapping_dict, target_mapping, ensure_ascii=False, indent=2)
 
-        source_en.close()
         target_gazetteer.close()
         target_mapping.close()
 
@@ -203,7 +200,7 @@ class DialogflowConverter(Converter):
                     continue
 
                 dialogflow_intent_file = os.path.join(
-                    self.dialogflow_project_directory, "intents", sub + ".json"
+                    self.dialogflow_project_directory, "intents", f"{sub}.json"
                 )
 
                 mindmeld_intent_directory_name = self.clean_check(
@@ -238,72 +235,66 @@ class DialogflowConverter(Converter):
     def _create_intent_file(
         self, dialogflow_intent_file, mindmeld_intent_directory, language
     ):
-        source_en = open(dialogflow_intent_file, "r")
-        target_train = open(os.path.join(mindmeld_intent_directory, "train.txt"), "w")
-        datastore = json.load(source_en)
-        all_text = []
-        default_intent_to_training_file = {
-            "default_fallback_intent": "unrelated.txt",
-            "default_welcome_intent": "greetings.txt",
-        }
+        with open(dialogflow_intent_file, "r") as source_en:
+            target_train = open(os.path.join(mindmeld_intent_directory, "train.txt"), "w")
+            datastore = json.load(source_en)
+            all_text = []
+            default_intent_to_training_file = {
+                "default_fallback_intent": "unrelated.txt",
+                "default_welcome_intent": "greetings.txt",
+            }
 
-        for usersay in datastore:
-            sentence = ""
-            for texts in usersay["data"]:
-                df_text = texts["text"]
-                if "meta" in texts and texts["meta"] != "@sys.ignore":
-                    df_meta = texts["meta"]
-                    role_type = texts["alias"].replace("-", "_")
+            for usersay in datastore:
+                sentence = ""
+                for texts in usersay["data"]:
+                    df_text = texts["text"]
+                    if "meta" in texts and texts["meta"] != "@sys.ignore":
+                        df_meta = texts["meta"]
+                        role_type = texts["alias"].replace("-", "_")
 
-                    if re.match(
-                        "(@sys.).+", df_meta
-                    ):  # if text is a dialogflow sys entity
-                        if df_meta in DialogflowConverter.sys_entity_map:
-                            mm_meta = DialogflowConverter.sys_entity_map[df_meta]
-                            entity_type = mm_meta
+                        if     re.match(
+                            "(@sys.).+", df_meta
+                        ):  # if text is a dialogflow sys entity
+                            if df_meta in DialogflowConverter.sys_entity_map:
+                                mm_meta = DialogflowConverter.sys_entity_map[df_meta]
+                                entity_type = mm_meta
+                            else:
+                                mm_meta = "[DNE: {sysEntity}]".format(sysEntity=df_meta[1:])
+                                logger.info(
+                                    "Unfortunately mindmeld does not currently support"
+                                    "%s as a sys entity."
+                                    "Please create an entity for this.",
+                                    df_meta[1:],
+                                )
+                                entity_type = f"{self.clean_name(mm_meta)}_{language}"
+
                         else:
-                            mm_meta = "[DNE: {sysEntity}]".format(sysEntity=df_meta[1:])
-                            logger.info(
-                                "Unfortunately mindmeld does not currently support"
-                                "%s as a sys entity."
-                                "Please create an entity for this.",
-                                df_meta[1:],
-                            )
-                            entity_type = self.clean_name(mm_meta) + "_" + language
-
+                            entity_type = f"{self.clean_name(df_meta[1:])}_{language}"
                         part = "{" + df_text + "|" + entity_type + "|" + role_type + "}"
                     else:
-                        entity_type = self.clean_name(df_meta[1:]) + "_" + language
-                        part = "{" + df_text + "|" + entity_type + "|" + role_type + "}"
-                else:
-                    part = df_text
+                        part = df_text
 
-                sentence += part
-            all_text.append(sentence)
+                    sentence += part
+                all_text.append(sentence)
 
-        for key in default_intent_to_training_file:
-            if key in mindmeld_intent_directory:
-                with open(
-                    os.path.join(package_dir, default_intent_to_training_file[key])
-                ) as fp:
-                    for line in fp:
-                        all_text.append(line.strip())
+            for key, value in default_intent_to_training_file.items():
+                if key in mindmeld_intent_directory:
+                    with open(os.path.join(package_dir, value)) as fp:
+                        all_text.extend(line.strip() for line in fp)
+            # Double the size of the training set if there are less than the number of
+            # folds for cross-val in the config.py file
+            intent_config = DEFAULT_INTENT_CLASSIFIER_CONFIG
+            if self.custom_config_file_path:
+                config_path = os.path.join(self.mindmeld_project_directory, "config.py")
+                spec = importlib.util.spec_from_file_location("mindmeld_app", config_path)
+                config = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(config)
+                intent_config = getattr(config, "INTENT_RECOGNIZER_CONFIG", intent_config)
 
-        # Double the size of the training set if there are less than the number of
-        # folds for cross-val in the config.py file
-        intent_config = DEFAULT_INTENT_CLASSIFIER_CONFIG
-        if self.custom_config_file_path:
-            config_path = os.path.join(self.mindmeld_project_directory, "config.py")
-            spec = importlib.util.spec_from_file_location("mindmeld_app", config_path)
-            config = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(config)
-            intent_config = getattr(config, "INTENT_RECOGNIZER_CONFIG", intent_config)
+            while len(all_text) < intent_config["param_selection"]["k"]:
+                all_text *= 2
 
-        while len(all_text) < intent_config["param_selection"]["k"]:
-            all_text = all_text * 2
-
-        target_train.write("\n".join(all_text))
-        source_en.close()
+            target_train.write("\n".join(all_text))
         target_train.close()
 
     def _get_file_names(self, level):
@@ -319,14 +310,12 @@ class DialogflowConverter(Converter):
         files = os.listdir(directory)
 
         w = {"entities": "entries", "intents": "usersays"}
-        p = r".+(?<=(_" + w[level] + "_))(.*)(?=(.json))"
+        p = f".+(?<=(_{w[level]}_))(.*)(?=(.json))"
         language = "en"
 
         info = {}
         for name in files:
-            match = re.match(p, name)
-
-            if match:
+            if match := re.match(p, name):
                 isbase = False
                 base = name[: match.start(1)]
                 language = str(match.group(2))
@@ -378,8 +367,8 @@ class DialogflowConverter(Converter):
 
     def create_mindmeld_init(self):
         with open(
-            os.path.join(self.mindmeld_project_directory, "__init__.py"), "w"
-        ) as target:
+                os.path.join(self.mindmeld_project_directory, "__init__.py"), "w"
+            ) as target:
 
             self.code_gen.begin(tab="    ")
             self.code_gen.generate_top_block()
@@ -389,7 +378,7 @@ class DialogflowConverter(Converter):
             for main in intents:
 
                 df_main = os.path.join(
-                    self.dialogflow_project_directory, "intents", main + ".json"
+                    self.dialogflow_project_directory, "intents", f"{main}.json"
                 )
 
                 with open(df_main) as source:
@@ -411,7 +400,7 @@ class DialogflowConverter(Converter):
     def generate_handlers(self, intent, response):
         message = response["messages"][0]
         language = message["lang"]
-        intent_lang = "%s_%s" % (intent, language)
+        intent_lang = f"{intent}_{language}"
         intent_entity_role_replies = {intent_lang: {}}
 
         for param in response["parameters"]:
@@ -421,7 +410,7 @@ class DialogflowConverter(Converter):
                     entity = DialogflowConverter.sys_entity_map[entity]
                 else:
                     entity = param["dataType"].replace("@", "").replace("-", "_")
-                    entity = "%s_%s" % (entity, language)
+                    entity = f"{entity}_{language}"
                 role = param["name"].replace("@", "").replace("-", "_")
 
                 prompts = []
@@ -445,15 +434,13 @@ class DialogflowConverter(Converter):
                 template = resp
                 slots = re.findall("\$([\w\-\_]+)", resp)
                 for slot in slots:
-                    template = template.replace(
-                        "$" + slot, "{" + slot.replace("-", "_") + "}"
-                    )
+                    template = template.replace(f"${slot}", "{" + slot.replace("-", "_") + "}")
                 if template != resp:
                     is_slot_template = True
                 slot_templated_replies.append(template)
 
-            handle = "intent='%s_%s'" % (intent, language)
-            function_name = intent + "_" + language + "_handler"
+            handle = f"intent='{intent}_{language}'"
+            function_name = f"{intent}_{language}_handler"
 
             if is_slot_template:
                 self.code_gen.generate_followup_function_code_block(

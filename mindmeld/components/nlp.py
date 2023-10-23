@@ -14,6 +14,7 @@
 """
 This module contains the natural language processor.
 """
+
 import datetime
 import logging
 import os
@@ -61,10 +62,7 @@ from ..system_entity_recognizer import SystemEntityRecognizer
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 
 SUBPROCESS_WAIT_TIME = 0.5
-default_num_workers = 0
-if sys.version_info > (3, 0):
-    default_num_workers = cpu_count() + 1
-
+default_num_workers = cpu_count() + 1 if sys.version_info > (3, 0) else 0
 logger = logging.getLogger(__name__)
 num_workers = int(os.environ.get("MM_SUBPROCESS_COUNT", default_num_workers))
 executor = ProcessPoolExecutor(max_workers=num_workers) if num_workers > 0 else None
@@ -347,7 +345,7 @@ class Processor(ABC):
                 # process pool is broken, restart it and process current request in series
                 restart_subprocesses()
         # process the list in series
-        return tuple([getattr(self, func)(itm, *args, **kwargs) for itm in items])
+        return tuple(getattr(self, func)(itm, *args, **kwargs) for itm in items)
 
     def create_query(
         self, query_text, locale=None, language=None, time_zone=None, timestamp=None
@@ -517,13 +515,8 @@ class NaturalLanguageProcessor(Processor):
 
     def _evaluate(self, print_stats, label_set=None):
         if len(self.domains) > 1:
-            domain_eval = self.domain_classifier.evaluate(label_set=label_set)
-            if domain_eval:
-                print(
-                    "Domain classification accuracy: '{}'".format(
-                        domain_eval.get_accuracy()
-                    )
-                )
+            if domain_eval := self.domain_classifier.evaluate(label_set=label_set):
+                print(f"Domain classification accuracy: '{domain_eval.get_accuracy()}'")
                 if print_stats:
                     domain_eval.print_stats()
             else:
@@ -535,22 +528,7 @@ class NaturalLanguageProcessor(Processor):
         domain_proba = None
 
         if len(self.domains) > 1:
-            if not allowed_nlp_classes:
-                if verbose:
-                    # predict_proba() returns sorted list of tuples
-                    # ie, [(<class1>, <confidence>), (<class2>, <confidence>),...]
-                    domain_proba = self.domain_classifier.predict_proba(
-                        query, dynamic_resource=dynamic_resource
-                    )
-                    # Since domain_proba is sorted by class with highest confidence,
-                    # get that as the predicted class
-                    return domain_proba[0][0], domain_proba
-                else:
-                    domain = self.domain_classifier.predict(
-                        query, dynamic_resource=dynamic_resource
-                    )
-                    return domain, None
-            else:
+            if allowed_nlp_classes:
                 if len(allowed_nlp_classes) == 1:
                     domain = list(allowed_nlp_classes.keys())[0]
                     if verbose:
@@ -569,6 +547,20 @@ class NaturalLanguageProcessor(Processor):
                     raise AllowedNlpClassesKeyError(
                         "Could not find user inputted domain in NLP hierarchy"
                     )
+            elif verbose:
+                # predict_proba() returns sorted list of tuples
+                # ie, [(<class1>, <confidence>), (<class2>, <confidence>),...]
+                domain_proba = self.domain_classifier.predict_proba(
+                    query, dynamic_resource=dynamic_resource
+                )
+                # Since domain_proba is sorted by class with highest confidence,
+                # get that as the predicted class
+                return domain_proba[0][0], domain_proba
+            else:
+                domain = self.domain_classifier.predict(
+                    query, dynamic_resource=dynamic_resource
+                )
+                return domain, None
         else:
             domain = list(self.domains.keys())[0]
             if verbose:
@@ -599,10 +591,7 @@ class NaturalLanguageProcessor(Processor):
                 query.
         """
         self._check_ready()
-        if isinstance(query, (list, tuple)):
-            top_query = query[0]
-        else:
-            top_query = query
+        top_query = query[0] if isinstance(query, (list, tuple)) else query
         domain, domain_proba = self._process_domain(
             top_query,
             allowed_nlp_classes=allowed_nlp_classes,
@@ -658,14 +647,13 @@ class NaturalLanguageProcessor(Processor):
                 domain, intent, entity, role = nlp_entries
                 nlp_tree.update(action, domain, intent, entity, role)
 
-        allow_nlp_components = nlp_tree.to_dict()
-        if not allow_nlp_components:
+        if allow_nlp_components := nlp_tree.to_dict():
+            return allow_nlp_components
+        else:
             raise UnconstrainedMaskError(
                 f"Since {deny_nlp_components_list} masks more "
                 f"NLP components than {allow_nlp_components_list} "
                 "allows, we unmask all NLP components")
-
-        return allow_nlp_components
 
     @staticmethod
     def print_inspect_stats(stats):
@@ -887,12 +875,9 @@ class DomainProcessor(Processor):
 
     def _evaluate(self, print_stats, label_set="test"):
         if len(self.intents) > 1:
-            intent_eval = self.intent_classifier.evaluate(label_set=label_set)
-            if intent_eval:
+            if intent_eval := self.intent_classifier.evaluate(label_set=label_set):
                 print(
-                    "Intent classification accuracy for the {} domain: {}".format(
-                        self.name, intent_eval.get_accuracy()
-                    )
+                    f"Intent classification accuracy for the {self.name} domain: {intent_eval.get_accuracy()}"
                 )
                 if print_stats:
                     intent_eval.print_stats()
@@ -985,25 +970,11 @@ class DomainProcessor(Processor):
         """
         self._check_ready()
 
-        if isinstance(query, (list, tuple)):
-            top_query = query[0]
-        else:
-            top_query = query
-
+        top_query = query[0] if isinstance(query, (list, tuple)) else query
         intent_proba = None
         if len(self.intents) > 1:
             # Check if the user has specified allowed intents
-            if not allowed_nlp_classes:
-                if verbose:
-                    intent_proba = self.intent_classifier.predict_proba(
-                        top_query, dynamic_resource=dynamic_resource
-                    )
-                    intent = intent_proba[0][0]
-                else:
-                    intent = self.intent_classifier.predict(
-                        top_query, dynamic_resource=dynamic_resource
-                    )
-            else:
+            if allowed_nlp_classes:
                 if len(allowed_nlp_classes) == 1:
                     intent = list(allowed_nlp_classes.keys())[0]
                     if verbose:
@@ -1012,18 +983,29 @@ class DomainProcessor(Processor):
                     sorted_intents = self.intent_classifier.predict_proba(
                         top_query, dynamic_resource=dynamic_resource
                     )
-                    intent = None
                     if verbose:
                         intent_proba = sorted_intents
-                    for ordered_intent, _ in sorted_intents:
-                        if ordered_intent in allowed_nlp_classes.keys():
-                            intent = ordered_intent
-                            break
-
+                    intent = next(
+                        (
+                            ordered_intent
+                            for ordered_intent, _ in sorted_intents
+                            if ordered_intent in allowed_nlp_classes.keys()
+                        ),
+                        None,
+                    )
                     if not intent:
                         raise AllowedNlpClassesKeyError(
                             "Could not find user inputted intent in NLP hierarchy"
                         )
+            elif verbose:
+                intent_proba = self.intent_classifier.predict_proba(
+                    top_query, dynamic_resource=dynamic_resource
+                )
+                intent = intent_proba[0][0]
+            else:
+                intent = self.intent_classifier.predict(
+                    top_query, dynamic_resource=dynamic_resource
+                )
         else:
             intent = list(self.intents.keys())[0]
             if verbose:
@@ -1231,11 +1213,9 @@ class IntentProcessor(Processor):
 
     def _evaluate(self, print_stats, label_set="test"):
         if len(self.entity_recognizer.entity_types) > 0:
-            entity_eval = self.entity_recognizer.evaluate(label_set=label_set)
-            if entity_eval:
+            if entity_eval := self.entity_recognizer.evaluate(label_set=label_set):
                 print(
-                    "Entity recognition accuracy for the '{}.{}' intent"
-                    ": {}".format(self.domain, self.name, entity_eval.get_accuracy())
+                    f"Entity recognition accuracy for the '{self.domain}.{self.name}' intent: {entity_eval.get_accuracy()}"
                 )
                 if print_stats:
                     entity_eval.print_stats()
@@ -1306,27 +1286,26 @@ class IntentProcessor(Processor):
         """
         if isinstance(query, (list, tuple)):
             if self.nbest_transcripts_enabled:
-                nbest_transcripts_entities = self._process_list(
+                return self._process_list(
                     query,
                     "_recognize_entities",
                     **{"dynamic_resource": dynamic_resource, "verbose": verbose}
                 )
-                return nbest_transcripts_entities
-            else:
-                if len(self.entities) == 0:
-                    return [()]
-                if verbose:
-                    return [
-                        self.entity_recognizer.predict_proba(
-                            query[0], dynamic_resource=dynamic_resource
-                        )
-                    ]
-                else:
-                    return [
-                        self.entity_recognizer.predict(
-                            query[0], dynamic_resource=dynamic_resource
-                        )
-                    ]
+            if len(self.entities) == 0:
+                return [()]
+            return (
+                [
+                    self.entity_recognizer.predict_proba(
+                        query[0], dynamic_resource=dynamic_resource
+                    )
+                ]
+                if verbose
+                else [
+                    self.entity_recognizer.predict(
+                        query[0], dynamic_resource=dynamic_resource
+                    )
+                ]
+            )
         if len(self.entities) == 0:
             return ()
         if verbose:
@@ -1382,7 +1361,7 @@ class IntentProcessor(Processor):
                             min(n_end, ref_end) - max(ref_start, n_start) > 0
                             and ref_entity.entity.type == entity.entity.type
                         ):
-                            index_to_align = index_to_align + j
+                            index_to_align += j
                             aligned_entities[index_to_align].append(entity)
                             break
         return aligned_entities
@@ -1423,19 +1402,23 @@ class IntentProcessor(Processor):
         if isinstance(query, (list, tuple)):
             query = query[0]
 
-        processed_entities = []
-        for entity in entities[0]:
-            # allowed_nlp_classes is None when user defined masks are not used, in which
-            # case all entities are allowed. However, if user defined masks are used and
-            # the entity is not included, we mask off that entity
-            if allowed_nlp_classes is None or entity.entity.type in allowed_nlp_classes:
-                processed_entities.append(deepcopy(entity))
-        processed_entities_conf = self._process_list(
+        processed_entities = [
+            deepcopy(entity)
+            for entity in entities[0]
+            if allowed_nlp_classes is None
+            or entity.entity.type in allowed_nlp_classes
+        ]
+        if processed_entities_conf := self._process_list(
             list(range(len(processed_entities))),
             "_classify_and_resolve_entities",
-            *[query, processed_entities, aligned_entities, allowed_nlp_classes, verbose]
-        )
-        if processed_entities_conf:
+            *[
+                query,
+                processed_entities,
+                aligned_entities,
+                allowed_nlp_classes,
+                verbose,
+            ],
+        ):
             processed_entities, role_confidence = [
                 list(tup) for tup in zip(*processed_entities_conf)
             ]
@@ -1456,8 +1439,9 @@ class IntentProcessor(Processor):
         pred_entities = entities[0]
         entity_confidence = []
         if verbose and len(pred_entities) > 0:
-            for entity, score in pred_entities:
-                entity_confidence.append({entity.entity.type: score})
+            entity_confidence.extend(
+                {entity.entity.type: score} for entity, score in pred_entities
+            )
             _pred_entities, _ = zip(*pred_entities)
             return entity_confidence, [_pred_entities]
         return entity_confidence, entities
@@ -1495,11 +1479,11 @@ class IntentProcessor(Processor):
             query, dynamic_resource=dynamic_resource, verbose=verbose
         )
 
-        allowed_nlp_entity_exists_in_inference = allowed_nlp_classes and all(
-            query_entity.entity.type not in allowed_nlp_classes for entities in
-            nbest_entities for query_entity in entities)
-
-        if allowed_nlp_entity_exists_in_inference:
+        if allowed_nlp_entity_exists_in_inference := allowed_nlp_classes and all(
+            query_entity.entity.type not in allowed_nlp_classes
+            for entities in nbest_entities
+            for query_entity in entities
+        ):
             nbest_entities = self._find_entities_in_text(
                 query, dynamic_resource, allowed_nlp_classes, max_ngram_search)
 
@@ -1735,12 +1719,9 @@ class EntityProcessor(Processor):
     def _evaluate(self, print_stats, label_set="test"):
         # evaluation can be done only for role classifier and not for entity resolver
         if len(self.role_classifier.roles) > 1:
-            role_eval = self.role_classifier.evaluate(label_set=label_set)
-            if role_eval:
+            if role_eval := self.role_classifier.evaluate(label_set=label_set):
                 print(
-                    "Role classification accuracy for the {}.{}.{}' entity type: {}".format(
-                        self.domain, self.intent, self.type, role_eval.get_accuracy()
-                    )
+                    f"Role classification accuracy for the {self.domain}.{self.intent}.{self.type}' entity type: {role_eval.get_accuracy()}"
                 )
                 if print_stats:
                     role_eval.print_stats()

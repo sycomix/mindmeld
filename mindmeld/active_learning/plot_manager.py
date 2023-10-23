@@ -201,10 +201,10 @@ class PlotManager:
         Returns:
             strategies (list): List of selection strategies for the given experiment.
         """
-        strategies = list(self.accuracies_data)
-        if len(strategies) == 0:
+        if strategies := list(self.accuracies_data):
+            return strategies
+        else:
             raise MissingDataError("Did not find data in accuracies.json.")
-        return strategies
 
     def _check_first_epoch_and_iter_exist(self):
         """Check whether data for the first iteration in the first epoch exists.
@@ -416,7 +416,7 @@ class PlotManager:
                 )
                 self.plt.plot(x_values, y_values)
                 all_y_values.append(y_values)
-            max_len = max([len(i) for i in all_y_values])
+            max_len = max(len(i) for i in all_y_values)
             for y_values in all_y_values:
                 y_values = np.pad(
                     y_values,
@@ -437,7 +437,7 @@ class PlotManager:
             title = f"{strategy}_All_Epochs_({'-'.join(y_keys)})"
             self.plt.title(title)
             self.plt.legend(
-                ["epoch " + str(epoch) for epoch in range(n_epochs)] + ["avg"],
+                [f"epoch {str(epoch)}" for epoch in range(n_epochs)] + ["avg"],
                 loc="lower right",
             )
             self.plt.grid()
@@ -460,9 +460,7 @@ class PlotManager:
         unique_labels = []
         for counter in all_counters:
             unique_labels.extend(list(counter.keys()))
-        unique_labels = list(set(unique_labels))
-        unique_labels.sort()
-        return unique_labels
+        return sorted(set(unique_labels))
 
     @staticmethod
     def get_label_set_counter(all_counters: List, unique_labels: List) -> Dict:

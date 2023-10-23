@@ -150,8 +150,7 @@ def qa_kwik_e_mart(kwik_e_mart_app_path, es_client):
         index_name="stores",
         data_file=STORE_DATA_FILE_PATH,
     )
-    qa = QuestionAnswerer(kwik_e_mart_app_path)
-    return qa
+    return QuestionAnswerer(kwik_e_mart_app_path)
 
 
 @pytest.fixture(scope="session")
@@ -312,7 +311,7 @@ test_queries = [
 
 @pytest.fixture
 def processed_queries(query_factory):
-    pq_list = []
-    for domain, intent, text in test_queries:
-        pq_list.append(load_query(text, query_factory, domain=domain, intent=intent))
-    return pq_list
+    return [
+        load_query(text, query_factory, domain=domain, intent=intent)
+        for domain, intent, text in test_queries
+    ]

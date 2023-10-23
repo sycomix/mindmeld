@@ -180,7 +180,7 @@ def safe_path(func):
 def _resolve_model_name(path, model_name=None):
     if model_name:
         path, ext = os.path.splitext(path)
-        path = "{}_{}{}".format(path, model_name, ext)
+        path = f"{path}_{model_name}{ext}"
     return path
 
 
@@ -197,7 +197,7 @@ def get_domains(app_path):
         (set of str) A list of domain names.
     """
     if not os.path.exists(app_path):
-        raise OSError('No app found at "{}"'.format(app_path))
+        raise OSError(f'No app found at "{app_path}"')
     domains_dir = DOMAINS_FOLDER.format(app_path=app_path)
     return set(next(os.walk(domains_dir))[1])
 
@@ -213,7 +213,7 @@ def get_intents(app_path, domain):
         (set of str) A list of intent names.
     """
     if not os.path.exists(app_path):
-        raise OSError('Domain "{}" not found in app at "{}"'.format(domain, app_path))
+        raise OSError(f'Domain "{domain}" not found in app at "{app_path}"')
     domain_dir = DOMAIN_FOLDER.format(app_path=app_path, domain=domain)
     return set(next(os.walk(domain_dir))[1])
 
@@ -264,8 +264,8 @@ def get_labeled_query_tree(app_path, patterns=None):
                     mod_time = os.path.getmtime(abs_filepath)
                     tree[domain][intent][abs_filepath] = mod_time
 
-    for pattern in found_pattern:
-        if not found_pattern[pattern]:
+    for value in found_pattern.values():
+        if not value:
             logger.error(
                 "Couldn't find %s pattern files in %s directory", patterns, domains_dir
             )
@@ -284,7 +284,7 @@ def get_entity_types(app_path):
 
     """
     if not os.path.exists(app_path):
-        raise OSError('No app found at "{}"'.format(app_path))
+        raise OSError(f'No app found at "{app_path}"')
     entities_dir = ENTITIES_FOLDER.format(app_path=app_path)
 
     return next(os.walk(entities_dir))[1]
@@ -301,7 +301,7 @@ def get_indexes(app_path):
 
     """
     if not os.path.exists(app_path):
-        raise OSError('No app found at "{}"'.format(app_path))
+        raise OSError(f'No app found at "{app_path}"')
     indexes_dir = INDEXES_FOLDER.format(app_path=app_path)
     return next(os.walk(indexes_dir))[1]
 
@@ -320,8 +320,7 @@ def get_generated_data_folder(app_path):
         str: The path for this app's generated files
 
     """
-    path = GEN_FOLDER.format(app_path=app_path)
-    return path
+    return GEN_FOLDER.format(app_path=app_path)
 
 
 @safe_path

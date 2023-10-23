@@ -163,13 +163,13 @@ class Gazetteer:
             normalizer (function): A function that normalizes text.
         """
         logger.info("Loading entity data from '%s'", filename)
-        line_count = 0
-        entities_added = 0
         num_cols = None
 
         if not os.path.isfile(filename):
             logger.warning("Entity data file was not found at %s", filename)
         else:
+            line_count = 0
+            entities_added = 0
             with codecs.open(filename, encoding="utf8") as data_file:
                 for i, row in enumerate(data_file.readlines()):
                     if not row:
@@ -217,9 +217,7 @@ class Gazetteer:
         line_count = 0
         synonyms_added = 0
         missing_canonicals = 0
-        min_popularity = 0
-        if len(self.pop_dict) > 0:
-            min_popularity = min(self.pop_dict.values())
+        min_popularity = min(self.pop_dict.values()) if len(self.pop_dict) > 0 else 0
         for item in mapping:
 
             tokenized_canonical = tuple(normalizer(item["cname"]).split())

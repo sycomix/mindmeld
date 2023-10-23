@@ -52,11 +52,18 @@ def extract_in_gaz_span_features(**kwargs):
 
             pop = all_gazes[current_gaz.gaz_name]["pop_dict"][current_gaz.token_ngram]
             p_total = (
-                math.log(sum([g["total_entities"] for g in all_gazes.values()]) + 1) / 2
+                math.log(
+                    sum(g["total_entities"] for g in all_gazes.values()) + 1
+                )
+                / 2
             )
             p_entity_type = math.log(all_gazes[current_gaz.gaz_name]["total_entities"] + 1)
             p_entity = math.log(
-                sum([len(g["index"][current_gaz.raw_ngram]) for g in all_gazes.values()]) + 1
+                sum(
+                    len(g["index"][current_gaz.raw_ngram])
+                    for g in all_gazes.values()
+                )
+                + 1
             )
             p_joint = math.log(len(
                 all_gazes[current_gaz.gaz_name]["index"][current_gaz.raw_ngram]) + 1)
@@ -231,9 +238,7 @@ def extract_in_gaz_ngram_features(**kwargs):
                 feat_prefix = "in_gaz|type:{}|ngram".format(entity_type)
 
                 # entity PMI and conditional prob
-                p_total = (
-                    math.log(sum([g["total_entities"] for g in gazes.values()]) + 1) / 2
-                )
+                p_total = math.log(sum(g["total_entities"] for g in gazes.values()) + 1) / 2
                 p_entity_type = math.log(gazes[entity_type]["total_entities"] + 1)
 
                 features = {
@@ -258,16 +263,20 @@ def extract_in_gaz_ngram_features(**kwargs):
                         "length": 1,
                         "position": 0,
                         "p_ngram": math.log(
-                            sum(
-                                [
+                            (
+                                sum(
                                     len(g["index"][get_ngram(tokens, i, 1)])
                                     for g in gazes.values()
-                                ]
+                                )
+                                + 1
                             )
-                            + 1
                         ),
                         "p_joint": math.log(
-                            len(gazes[entity_type]["index"][get_ngram(tokens, i, 1)])
+                            len(
+                                gazes[entity_type]["index"][
+                                    get_ngram(tokens, i, 1)
+                                ]
+                            )
                             + 1
                         ),
                     },
@@ -275,17 +284,21 @@ def extract_in_gaz_ngram_features(**kwargs):
                         "length": 2,
                         "position": -1,
                         "p_ngram": math.log(
-                            sum(
-                                [
-                                    len(g["index"][get_ngram(tokens, i - 1, 2)])
+                            (
+                                sum(
+                                    len(
+                                        g["index"][get_ngram(tokens, i - 1, 2)]
+                                    )
                                     for g in gazes.values()
-                                ]
+                                )
+                                + 1
                             )
-                            + 1
                         ),
                         "p_joint": math.log(
                             len(
-                                gazes[entity_type]["index"][get_ngram(tokens, i - 1, 2)]
+                                gazes[entity_type]["index"][
+                                    get_ngram(tokens, i - 1, 2)
+                                ]
                             )
                             + 1
                         ),
@@ -294,16 +307,20 @@ def extract_in_gaz_ngram_features(**kwargs):
                         "length": 2,
                         "position": 1,
                         "p_ngram": math.log(
-                            sum(
-                                [
+                            (
+                                sum(
                                     len(g["index"][get_ngram(tokens, i, 2)])
                                     for g in gazes.values()
-                                ]
+                                )
+                                + 1
                             )
-                            + 1
                         ),
                         "p_joint": math.log(
-                            len(gazes[entity_type]["index"][get_ngram(tokens, i, 2)])
+                            len(
+                                gazes[entity_type]["index"][
+                                    get_ngram(tokens, i, 2)
+                                ]
+                            )
                             + 1
                         ),
                     },
@@ -311,17 +328,21 @@ def extract_in_gaz_ngram_features(**kwargs):
                         "length": 3,
                         "position": 0,
                         "p_ngram": math.log(
-                            sum(
-                                [
-                                    len(g["index"][get_ngram(tokens, i - 1, 3)])
+                            (
+                                sum(
+                                    len(
+                                        g["index"][get_ngram(tokens, i - 1, 3)]
+                                    )
                                     for g in gazes.values()
-                                ]
+                                )
+                                + 1
                             )
-                            + 1
                         ),
                         "p_joint": math.log(
                             len(
-                                gazes[entity_type]["index"][get_ngram(tokens, i - 1, 3)]
+                                gazes[entity_type]["index"][
+                                    get_ngram(tokens, i - 1, 3)
+                                ]
                             )
                             + 1
                         ),
@@ -821,20 +842,16 @@ def extract_edge_ngrams(lengths=(1,), **kwargs):
                     tok if resources[WORD_FREQ_RSC].get(tok, 0) > 1 else OUT_OF_VOCABULARY
                     for tok in right_tokens
                 ]
-                feats.update(
-                    {
-                        "bag_of_words|edge:left|length:{}|ngram:{}".format(
-                            length, " ".join(left_tokens)
-                        ): 1
-                    }
-                )
-                feats.update(
-                    {
-                        "bag_of_words|edge:right|length:{}|ngram:{}".format(
-                            length, " ".join(right_tokens)
-                        ): 1
-                    }
-                )
+                feats[
+                    "bag_of_words|edge:left|length:{}|ngram:{}".format(
+                        length, " ".join(left_tokens)
+                    )
+                ] = 1
+                feats[
+                    "bag_of_words|edge:right|length:{}|ngram:{}".format(
+                        length, " ".join(right_tokens)
+                    )
+                ] = 1
         return feats
 
     return _extractor
@@ -1073,7 +1090,4 @@ def find_ngrams(input_list, n, **kwargs):
             input list
     """
     del kwargs
-    result = []
-    for ngram in zip(*[input_list[i:] for i in range(n)]):
-        result.append(" ".join(ngram))
-    return result
+    return [" ".join(ngram) for ngram in zip(*[input_list[i:] for i in range(n)])]

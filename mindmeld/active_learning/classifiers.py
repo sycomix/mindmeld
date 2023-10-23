@@ -364,14 +364,12 @@ class MindMeldALClassifier(ALClassifier):
             ProcessedQueryList(sampled_queries.cache, fold)
             for fold in fold_sampled_queries_ids
         ]
-        confidences_3d = []
-        for fold_sample_queries in fold_sampled_queries_lists:
-            confidences_3d.append(
-                self._train_single(
-                    fold_sample_queries, unsampled_queries, test_queries, label_map
-                )
+        return [
+            self._train_single(
+                fold_sample_queries, unsampled_queries, test_queries, label_map
             )
-        return confidences_3d
+            for fold_sample_queries in fold_sampled_queries_lists
+        ]
 
     def domain_classifier_fit_eval(
         self,
@@ -496,14 +494,13 @@ class MindMeldALClassifier(ALClassifier):
             padded_ic_queries_prob_vectors = self._pad_intent_probs(
                 ic_queries_prob_vectors, intents
             )
-            for i in range(len(filtered_unsampled_queries)):
-                unsampled_idx_preds_pairs.append(
-                    (
-                        filtered_unsampled_queries_indices[i],
-                        padded_ic_queries_prob_vectors[i],
-                    )
+            unsampled_idx_preds_pairs.extend(
+                (
+                    filtered_unsampled_queries_indices[i],
+                    padded_ic_queries_prob_vectors[i],
                 )
-
+                for i in range(len(filtered_unsampled_queries))
+            )
         unsampled_idx_preds_pairs.sort(key=lambda x: x[0])
         padded_ic_queries_prob_vectors = [x[1] for x in unsampled_idx_preds_pairs]
         return padded_ic_queries_prob_vectors, ic_eval_test_dict

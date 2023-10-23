@@ -616,10 +616,7 @@ class ResourceLoader:
         domains = [domain] if domain else query_tree.keys()
 
         for a_domain in sorted(domains):
-            if provided_intent:
-                intents = [provided_intent]
-            else:
-                intents = query_tree[a_domain].keys()
+            intents = [provided_intent] if provided_intent else query_tree[a_domain].keys()
             for an_intent in sorted(intents):
                 files = query_tree[a_domain][an_intent].keys()
                 # filter to files which belong to the label set
@@ -649,10 +646,9 @@ class ResourceLoader:
         all_file_paths = file_paths or self.get_all_file_paths()
         matched_paths = []
         for file_path in all_file_paths:
-            m = compiled_pattern.match(file_path)
-            if m:
+            if m := compiled_pattern.match(file_path):
                 matched_paths.append(m.group())
-        if len(matched_paths) == 0:
+        if not matched_paths:
             logger.warning("No matches were found for the given compiled pattern")
         return matched_paths
 
@@ -837,10 +833,10 @@ class ResourceLoader:
             self.stemmed_query_dict = Counter()
 
         def add(self, query):
-            self.query_dict.update(["<{}>".format(query.normalized_text)])
+            self.query_dict.update([f"<{query.normalized_text}>"])
 
             if self.enable_stemming:
-                self.stemmed_query_dict.update(["<{}>".format(query.stemmed_text)])
+                self.stemmed_query_dict.update([f"<{query.stemmed_text}>"])
 
         def get_resource(self):
             for query in self.query_dict:
@@ -855,7 +851,7 @@ class ResourceLoader:
 
             return self.query_dict
 
-    def get_sys_entity_types(self, labels):  # pylint: disable=no-self-use
+    def get_sys_entity_types(self, labels):    # pylint: disable=no-self-use
         """Get all system entity types from the entity labels.
 
         Args:
@@ -867,7 +863,7 @@ class ResourceLoader:
             for entity in label:
                 entity_types.add(entity.entity.type)
 
-        return set((t for t in entity_types if Entity.is_system_entity(t)))
+        return {t for t in entity_types if Entity.is_system_entity(t)}
 
     def hash_feature_resource(self, name):
         """Hashes the named resource.
@@ -878,8 +874,7 @@ class ResourceLoader:
         Returns:
             str: The hash result
         """
-        hash_func = self.RSC_HASH_MAP.get(name)
-        if hash_func:
+        if hash_func := self.RSC_HASH_MAP.get(name):
             return hash_func(self)
         else:
             raise ValueError("Invalid resource name {!r}.".format(name))
@@ -1027,10 +1022,10 @@ class Hasher:
         try:
             with open(filename, "rb") as file_p:
                 while True:
-                    buf = file_p.read(4096)
-                    if not buf:
+                    if buf := file_p.read(4096):
+                        hash_obj.update(buf)
+                    else:
                         break
-                    hash_obj.update(buf)
         except IOError:
             hash_obj.update("".encode("utf-8"))
         return hash_obj.hexdigest()

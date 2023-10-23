@@ -15,6 +15,7 @@
 Custom modules built on top of nn layers that can do token classification
 """
 
+
 import logging
 from abc import abstractmethod
 from collections import OrderedDict
@@ -45,8 +46,6 @@ try:
     TORCHCRF_AVAILABLE = True
 except ImportError:
     TORCHCRF_AVAILABLE = False
-    pass
-
 logger = logging.getLogger(__name__)
 
 
@@ -85,8 +84,8 @@ class BaseTokenClassification(BaseClassification):
             self.params.update({"out_dim": self.out_dim})
         except (AttributeError, AssertionError) as e:
             msg = f"Derived class '{self.name}' must indicate its hidden size for dense layer " \
-                  f"classification by having an attribute 'self.out_dim', which must be a " \
-                  f"positive integer greater than 1"
+                      f"classification by having an attribute 'self.out_dim', which must be a " \
+                      f"positive integer greater than 1"
             raise ValueError(msg) from e
 
         # init the peripheral architecture params and architectural components
@@ -104,19 +103,19 @@ class BaseTokenClassification(BaseClassification):
         )
         if self.params.use_crf_layer:
             self.classifier_head = nn.Linear(self.out_dim, self.params.num_labels)
-            if not TORCHCRF_AVAILABLE:
-                raise ImportError("pip install torchcrf")
-            self.crf_layer = CRF(self.params.num_labels, batch_first=True)
-        else:
-            if self.params.num_labels >= 2:
-                # cross-entropy criterion
-                self.classifier_head = nn.Linear(self.out_dim, self.params.num_labels)
-                self.criterion = nn.CrossEntropyLoss(
-                    reduction='mean', ignore_index=self.params._label_padding_idx)
+            if TORCHCRF_AVAILABLE:
+                self.crf_layer = CRF(self.params.num_labels, batch_first=True)
             else:
-                msg = f"Invalid number of labels specified: {self.params.num_labels}. " \
+                raise ImportError("pip install torchcrf")
+        elif self.params.num_labels >= 2:
+            # cross-entropy criterion
+            self.classifier_head = nn.Linear(self.out_dim, self.params.num_labels)
+            self.criterion = nn.CrossEntropyLoss(
+                reduction='mean', ignore_index=self.params._label_padding_idx)
+        else:
+            msg = f"Invalid number of labels specified: {self.params.num_labels}. " \
                       f"A valid number is equal to or greater than 2"
-                raise ValueError(msg)
+            raise ValueError(msg)
 
         msg = f"{self.name} is initialized"
         logger.info(msg)
@@ -204,16 +203,20 @@ class BaseTokenClassification(BaseClassification):
                 # find prediction probabilities
                 if self.params.use_crf_layer:
                     msg = f"Prediction probabilities cannot be computed when the param " \
-                          f"use_crf_layer is set to True in {self.__class__.__name__}"
+                              f"use_crf_layer is set to True in {self.__class__.__name__}"
                     raise NotImplementedError(msg)
                 else:
                     batch_maxes = torch.max(batch_logits, dim=-1)
                     batch_predictions = batch_maxes.indices.tolist()
                     batch_probabilities = batch_maxes.values.tolist()
-                for preds, probs, _split_lengths in zip(
-                    batch_predictions, batch_probabilities, batch_data["split_lengths"]
-                ):
-                    prediction_tuples.append(list(zip(preds, probs))[:len(_split_lengths)])
+                prediction_tuples.extend(
+                    list(zip(preds, probs))[: len(_split_lengths)]
+                    for preds, probs, _split_lengths in zip(
+                        batch_predictions,
+                        batch_probabilities,
+                        batch_data["split_lengths"],
+                    )
+                )
         if was_training:
             self.train()
         return prediction_tuples
@@ -504,8 +507,8 @@ class BertForTokenClassification(BaseTokenClassification):
         embedder_type = params.get("embedder_type", EmbedderType.BERT.value)
         if EmbedderType(embedder_type) != EmbedderType.BERT:
             msg = f"{self.name} can only be used with 'embedder_type': " \
-                  f"'{EmbedderType.BERT.value}'. " \
-                  f"Other values passed through config params are not allowed."
+                      f"'{EmbedderType.BERT.value}'. " \
+                      f"Other values passed through config params are not allowed."
             raise ValueError(msg)
 
         safe_values = {
@@ -519,16 +522,14 @@ class BertForTokenClassification(BaseTokenClassification):
             v_inputted = params.get(k, v)
             if v != v_inputted:
                 msg = f"{self.name} can be best used with '{k}' equal to '{v}' but found " \
-                      f"the value '{v_inputted}'. Use the non-default value with caution as it " \
-                      f"may lead to unexpected results and longer training times depending on " \
-                      f"the choice of pretrained model."
+                          f"the value '{v_inputted}'. Use the non-default value with caution as it " \
+                          f"may lead to unexpected results and longer training times depending on " \
+                          f"the choice of pretrained model."
                 logger.warning(msg)
             else:
-                params.update({k: v})
+                params[k] = v
 
-        params.update({
-            "embedder_type": embedder_type
-        })
+        params["embedder_type"] = embedder_type
 
         super().fit(examples, labels, **params)
 
@@ -537,10 +538,18 @@ class BertForTokenClassification(BaseTokenClassification):
         no_decay = ["bias", 'LayerNorm.bias', "LayerNorm.weight",
                     'layer_norm.bias', 'layer_norm.weight']
         optimizer_grouped_parameters = [
-            {'params': [p for n, p in params if not any(nd in n for nd in no_decay)],
-             'weight_decay': 0.01},
-            {'params': [p for n, p in params if any(nd in n for nd in no_decay)],
-             'weight_decay': 0.0}
+            {
+                'params': [
+                    p for n, p in params if all(nd not in n for nd in no_decay)
+                ],
+                'weight_decay': 0.01,
+            },
+            {
+                'params': [
+                    p for n, p in params if any(nd in n for nd in no_decay)
+                ],
+                'weight_decay': 0.0,
+            },
         ]
         optimizer = getattr(torch.optim, self.params.optimizer)(
             optimizer_grouped_parameters,
@@ -573,10 +582,13 @@ class BertForTokenClassification(BaseTokenClassification):
 
     def _get_dumpable_state_dict(self):
         if not self.params.update_embeddings and not self.params.save_frozen_bert_weights:
-            state_dict = OrderedDict(
-                {k: v for k, v in self.state_dict().items() if not k.startswith("bert_model")}
+            return OrderedDict(
+                {
+                    k: v
+                    for k, v in self.state_dict().items()
+                    if not k.startswith("bert_model")
+                }
             )
-            return state_dict
         return self.state_dict()
 
     def _init_core(self):
